@@ -63,93 +63,11 @@ export function useDataExport() {
                 break;
 
             case 'excel':
-                const processedExcelData = data.map(note => ({
-                    ID: note.id,
-                    Title: note.title,
-                    Body: stripMarkdown(note.body),
-                    Category: note.category || 'N/A',
-                    Created: note.created_at,
-                    'Last Updated': note.lastupdated || 'N/A',
-                    Favorite: note.fav ? 'Yes' : 'No',
-                    Trashed: note.trash ? 'Yes' : 'No',
-                    'Share ID': note.shareid || 'N/A'
-                }));
-
+                const processedExcelData = data.map(note => ({ ...note, body: stripMarkdown(note.body) }));
                 const ws = XLSX.utils.json_to_sheet(processedExcelData);
-
-                // Set column widths
-                ws['!cols'] = [
-                    { wch: 8 },   // ID
-                    { wch: 25 },  // Title
-                    { wch: 50 },  // Body
-                    { wch: 12 },  // Category
-                    { wch: 20 },  // Created
-                    { wch: 20 },  // Last Updated
-                    { wch: 10 },  // Favorite
-                    { wch: 10 },  // Trashed
-                    { wch: 15 }   // Share ID
-                ];
-
-                // Style header row
-                const range = XLSX.utils.decode_range(ws['!ref']);
-                for (let col = range.s.c; col <= range.e.c; col++) {
-                    const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
-                    if (!ws[cellAddress]) continue;
-                    ws[cellAddress].s = {
-                        font: { bold: true, color: { rgb: "FFFFFF" }, sz: 12 },
-                        fill: { fgColor: { rgb: "4472C4" } },
-                        alignment: { horizontal: "center", vertical: "center" },
-                        border: {
-                            top: { style: "thin", color: { rgb: "000000" } },
-                            bottom: { style: "thin", color: { rgb: "000000" } },
-                            left: { style: "thin", color: { rgb: "000000" } },
-                            right: { style: "thin", color: { rgb: "000000" } }
-                        }
-                    };
-                }
-
-                // Style data rows with alternating colors and conditional formatting
-                for (let row = range.s.r + 1; row <= range.e.r; row++) {
-                    const isFavorite = data[row - 1]?.fav;
-                    const isTrashed = data[row - 1]?.trash;
-
-                    for (let col = range.s.c; col <= range.e.c; col++) {
-                        const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
-                        if (!ws[cellAddress]) continue;
-
-                        // Determine row color
-                        let fillColor = row % 2 === 0 ? "F2F2F2" : "FFFFFF"; // Alternating rows
-
-                        if (isTrashed) {
-                            fillColor = "FFE6E6"; // Light red for trashed
-                        } else if (isFavorite) {
-                            fillColor = "FFF9E6"; // Light yellow for favorites
-                        }
-
-                        ws[cellAddress].s = {
-                            fill: { fgColor: { rgb: fillColor } },
-                            alignment: { vertical: "top", wrapText: true },
-                            border: {
-                                top: { style: "thin", color: { rgb: "CCCCCC" } },
-                                bottom: { style: "thin", color: { rgb: "CCCCCC" } },
-                                left: { style: "thin", color: { rgb: "CCCCCC" } },
-                                right: { style: "thin", color: { rgb: "CCCCCC" } }
-                            }
-                        };
-
-                        // Special formatting for Yes/No columns
-                        if (col === 6 || col === 7) { // Favorite and Trashed columns
-                            ws[cellAddress].s.alignment.horizontal = "center";
-                            if (ws[cellAddress].v === "Yes") {
-                                ws[cellAddress].s.font = { bold: true, color: { rgb: isTrashed ? "CC0000" : "008000" } };
-                            }
-                        }
-                    }
-                }
-
                 const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, 'Notes');
-                XLSX.writeFile(wb, `${filename}.xlsx`, { cellStyles: true });
+                XLSX.utils.book_append_sheet(wb, ws, 'Data');
+                XLSX.writeFile(wb, `${filename}.xlsx`);
                 break;
             case 'pdf':
                 const doc = new jsPDF();
