@@ -64,7 +64,7 @@ const ShowNotes = ({ notes, onRefresh }) => {
                     title: "Share ID Generated",
                     description: data.shareid,
                     action: (
-                        <ToastAction altText="Copy Share ID" onClick={() => navigator.clipboard.writeText(`https://bornebyte.vercel.app/shared/${data.shareid}`)}>Copy</ToastAction>
+                        <ToastAction altText="Copy Share ID" onClick={() => navigator.clipboard.writeText(`https://notes.shubham-shah.com.np/shared/${data.shareid}`)}>Copy</ToastAction>
                     ),
                 });
             } else {
@@ -78,7 +78,7 @@ const ShowNotes = ({ notes, onRefresh }) => {
     }
 
     const handleCopyShareID = async (shareid) => {
-        navigator.clipboard.writeText(`https://bornebyte.vercel.app/shared/${shareid}`)
+        navigator.clipboard.writeText(`https://notes.shubham-shah.com.np/shared/${shareid}`)
         if (shareid != null) {
             toast({
                 title: "Share ID Copied to clipboard"

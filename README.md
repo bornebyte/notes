@@ -1,16 +1,16 @@
 <div align="center">
-  <h1 align="center">BorneByte - A Modern Note-Taking Web App</h1>
+  <h1 align="center">Notes - A Modern Note-Taking Web App</h1>
   <p align="center">
     Capture your thoughts, ideas, and tasks with a fast, secure, and feature-rich note-taking application.
     <br />
-    <a href="https://github.com/bornebyte/bornebyte-web"><strong>Explore the docs »</strong></a>
+    <a href="https://github.com/bornebyte/notes"><strong>Explore the docs »</strong></a>
     <br />
     <br />
-    <a href="https://bornebyte.vercel.app/">View Demo</a>
+    <a href="https://notes.shubham-shah.com.np/">View Demo</a>
     ·
-    <a href="https://github.com/bornebyte/bornebyte-web/issues">Report Bug</a>
+    <a href="https://github.com/bornebyte/notes/issues">Report Bug</a>
     ·
-    <a href="https://github.com/bornebyte/bornebyte-web/issues">Request Feature</a>
+    <a href="https://github.com/bornebyte/notes/issues">Request Feature</a>
   </p>
 </div>
 
@@ -18,9 +18,9 @@
 
 ## About The Project
 
-**BorneByte** is a full-stack web application designed for efficient and organized note-taking. Built with the latest web technologies, it provides a seamless user experience for creating, managing, and sharing notes. The application features a clean, modern interface with a powerful backend to keep your data safe and accessible.
+**Notes** is a full-stack web application designed for efficient and organized note-taking. Built with the latest web technologies, it provides a seamless user experience for creating, managing, and sharing notes. The application features a clean, modern interface with a powerful backend to keep your data safe and accessible.
 
-From a quick memo to detailed notes with formatting, BorneByte is your personal digital notebook.
+From a quick memo to detailed notes with formatting, Notes is your personal digital notebook.
 
 ### Key Features
 
@@ -63,8 +63,8 @@ Make sure you have Node.js and npm (or yarn/pnpm/bun) installed on your machine.
 
 1.  **Clone the repo**
     ```sh
-    git clone https://github.com/bornebyte/bornebyte-web.git
-    cd bornebyte-web
+    git clone https://github.com/bornebyte/notes.git
+    cd notes
     ```
 
 2.  **Install NPM packages**

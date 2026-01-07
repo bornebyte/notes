@@ -5,8 +5,8 @@ import { Toaster } from "@/components/ui/toaster"
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata = {
-  title: "Bornebyte",
-  description: "Personal website of Bornebyte",
+  title: "Notes - Shubham Shah",
+  description: "Personal website of Shubham Shah - Notes App",
 };
 
 export default function RootLayout({ children }) {

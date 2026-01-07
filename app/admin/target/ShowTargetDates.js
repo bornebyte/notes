@@ -28,7 +28,7 @@ const ShowTargetDates = ({ targetdates, onRefresh }) => {
                     title: "Share ID Generated",
                     description: data.shareid,
                     action: (
-                        <ToastAction altText="Copy Share ID" onClick={() => navigator.clipboard.writeText(`https://bornebyte.vercel.app/target-view/${data.shareid}`)}>Copy</ToastAction>
+                        <ToastAction altText="Copy Share ID" onClick={() => navigator.clipboard.writeText(`https://notes.shubham-shah.com.np/target-view/${data.shareid}`)}>Copy</ToastAction>
                     ),
                 });
             } else {
@@ -42,7 +42,7 @@ const ShowTargetDates = ({ targetdates, onRefresh }) => {
     }
 
     const handleCopyShareID = async (shareid) => {
-        navigator.clipboard.writeText(`https://bornebyte.vercel.app/target-view/${shareid}`)
+        navigator.clipboard.writeText(`https://notes.shubham-shah.com.np/target-view/${shareid}`)
         if (shareid != null) {
             toast({
                 title: "Share ID Copied to clipboard"
