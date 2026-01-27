@@ -9,6 +9,9 @@ export async function GET(request) {
     }
 
     try {
+        const { searchParams } = new URL(request.url);
+        const year = searchParams.get('year') || new Date().getFullYear().toString();
+
         const data = await sql.query("select * from notes where trash=FALSE");
 
         let obj = [
@@ -27,7 +30,13 @@ export async function GET(request) {
         ];
 
         data.map((i) => {
-            switch (i.created_at.split('/')[0]) {
+            const dateParts = i.created_at.split('/');
+            const noteYear = dateParts[2]?.split(',')[0];
+
+            // Only count notes from the selected year
+            if (noteYear !== year) return;
+
+            switch (dateParts[0]) {
                 case "1":
                     obj[0].count++;
                     break;

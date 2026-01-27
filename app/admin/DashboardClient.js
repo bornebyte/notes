@@ -27,6 +27,7 @@ export default function DashboardClient({ initialStats, initialChart, initialPro
     const [productivity, setProductivity] = useState(initialProductivity);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(initialError);
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
 
     // Cache initial data on mount
     useEffect(() => {
@@ -35,13 +36,18 @@ export default function DashboardClient({ initialStats, initialChart, initialPro
         if (initialProductivity) setCache('dashboardProductivity', initialProductivity, 15);
     }, [initialStats, initialChart, initialProductivity]);
 
-    const refreshData = async () => {
+    // Refresh chart data when year changes
+    useEffect(() => {
+        refreshData(selectedYear);
+    }, [selectedYear]);
+
+    const refreshData = async (year = selectedYear) => {
         setLoading(true);
         setError(null);
         try {
             const [statsRes, chartRes, productivityRes] = await Promise.all([
                 fetch('/api/dashboard/stats', { cache: 'no-store' }),
-                fetch('/api/notes/chart', { cache: 'no-store' }),
+                fetch(`/api/notes/chart?year=${year}`, { cache: 'no-store' }),
                 fetch('/api/dashboard/productivity', { cache: 'no-store' })
             ]);
 
@@ -163,9 +169,22 @@ export default function DashboardClient({ initialStats, initialChart, initialPro
                     {/* Notes Activity Chart */}
                     <SlideIn delay={0.5} className="min-w-0">
                         <Card>
-                            <CardHeader>
-                                <CardTitle>Notes Activity</CardTitle>
-                                <CardDescription>Monthly note creation trends</CardDescription>
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                                <div>
+                                    <CardTitle>Notes Activity</CardTitle>
+                                    <CardDescription>Monthly note creation trends</CardDescription>
+                                </div>
+                                <select
+                                    value={selectedYear}
+                                    onChange={(e) => setSelectedYear(e.target.value)}
+                                    className="px-3 py-2 border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                    disabled={loading}
+                                >
+                                    {Array.from({ length: 10 }, (_, i) => {
+                                        const year = new Date().getFullYear() - i;
+                                        return <option key={year} value={year}>{year}</option>;
+                                    })}
+                                </select>
                             </CardHeader>
                             <CardContent className="min-w-0">
                                 <div className="w-full">
