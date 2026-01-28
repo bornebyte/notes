@@ -10,21 +10,38 @@ export async function PUT(request) {
 
     try {
         const { id, favorite } = await request.json();
+
+        if (!id) {
+            return NextResponse.json({ success: false, message: 'Note ID is required' }, { status: 400 });
+        }
+
         const date = new Date().toLocaleString("en-US", { timeZone: "Asia/Kathmandu" });
 
         if (favorite) {
-            const res = await sql.query(`update notes set fav='true' WHERE id = ${id} returning id`);
+            const res = await sql`UPDATE notes SET fav = TRUE WHERE id = ${id} RETURNING id`;
+            if (res.length === 0) {
+                return NextResponse.json({ success: false, message: 'Note not found' }, { status: 404 });
+            }
             const favID = res[0].id;
-            await sql.query(`INSERT INTO notifications (title, created_at, category, label) VALUES ('Note added to favourite with id ${favID}', '${date}','noteaddedfav','Note Added Favoutite')`);
+            await sql`
+                INSERT INTO notifications (title, created_at, category, label) 
+                VALUES (${`Note added to favourite with id ${favID}`}, ${date}, 'noteaddedfav', 'Note Added Favourite')
+            `;
         } else {
-            const res = await sql.query(`update notes set fav='false' WHERE id = ${id} returning id`);
+            const res = await sql`UPDATE notes SET fav = FALSE WHERE id = ${id} RETURNING id`;
+            if (res.length === 0) {
+                return NextResponse.json({ success: false, message: 'Note not found' }, { status: 404 });
+            }
             const favID = res[0].id;
-            await sql.query(`INSERT INTO notifications (title, created_at, category, label) VALUES ('Note removed from favourite with id ${favID}', '${date}','noteremovedfav','Note Removed Favoutite')`);
+            await sql`
+                INSERT INTO notifications (title, created_at, category, label) 
+                VALUES (${`Note removed from favourite with id ${favID}`}, ${date}, 'noteremovedfav', 'Note Removed Favourite')
+            `;
         }
 
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Error updating favorite status:', error);
-        return NextResponse.json({ success: false }, { status: 500 });
+        return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
     }
 }

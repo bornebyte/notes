@@ -101,6 +101,446 @@ You can start editing the page by modifying `app/page.js`. The page auto-updates
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+---
+
+## 🔌 API Documentation
+
+The Notes app provides a comprehensive REST API that supports both **cookie-based authentication** (for web apps) and **API token authentication** (for external apps and mobile clients).
+
+### Authentication Methods
+
+#### 1. Cookie-Based Authentication (Web)
+- Used by the web interface
+- Session managed via secure HTTP-only cookies
+- Automatically handled by the browser
+
+#### 2. API Token Authentication (External Apps)
+- Used for mobile apps, CLI tools, and third-party integrations
+- Include the `X-API-Token` header in all requests
+
+**Generating an API Token:**
+1. Log in to your account via the web interface
+2. Navigate to Settings → API Tokens
+3. Click "Generate New Token"
+4. Copy and securely store your token (it won't be shown again)
+
+**Using the API Token:**
+```bash
+curl -H "X-API-Token: your_token_here" https://your-domain.com/api/notes
+```
+
+### Rate Limiting
+- **Default Limit**: 100 requests per minute per token/session
+- Rate limit headers included in responses:
+  - `X-RateLimit-Remaining`: Remaining requests
+  - `Retry-After`: Seconds to wait when rate limited (429 status)
+
+---
+
+### 📝 Notes Endpoints
+
+#### **GET /api/notes**
+Get all notes or filter by type.
+
+**Query Parameters:**
+- `type` (optional): Filter type - `favorites`, `trashed`
+- `query` (optional): Search term to filter notes
+- `shareid` (optional): Get a specific shared note
+
+**Example:**
+```bash
+# Get all notes
+curl -H "X-API-Token: YOUR_TOKEN" https://your-domain.com/api/notes
+
+# Get favorite notes
+curl -H "X-API-Token: YOUR_TOKEN" https://your-domain.com/api/notes?type=favorites
+
+# Search notes
+curl -H "X-API-Token: YOUR_TOKEN" https://your-domain.com/api/notes?query=javascript
+```
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "title": "My Note",
+    "body": "Note content here",
+    "category": null,
+    "created_at": "1/28/2026, 10:30:00 AM",
+    "lastupdated": null,
+    "fav": false,
+    "trash": false,
+    "shareid": null
+  }
+]
+```
+
+#### **POST /api/notes**
+Create a new note.
+
+**Body:**
+```json
+{
+  "title": "Note Title",
+  "body": "Note content",
+  "category": "Optional category"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "id": 123
+}
+```
+
+#### **PUT /api/notes**
+Update an existing note.
+
+**Body:**
+```json
+{
+  "id": 123,
+  "title": "Updated Title",
+  "body": "Updated content"
+}
+```
+
+#### **DELETE /api/notes?id=123&permanent=true**
+Permanently delete a note.
+
+**Query Parameters:**
+- `id` (required): Note ID
+- `permanent` (required): Must be `true` to permanently delete
+
+---
+
+### ⭐ Favorite Notes
+
+#### **PUT /api/notes/favorite**
+Add or remove a note from favorites.
+
+**Body:**
+```json
+{
+  "id": 123,
+  "favorite": true
+}
+```
+
+---
+
+### 🗑️ Trash Management
+
+#### **PUT /api/notes/trash**
+Move a note to trash or restore it.
+
+**Body:**
+```json
+{
+  "id": 123,
+  "trash": true
+}
+```
+
+---
+
+### 🔗 Share Notes
+
+#### **POST /api/notes/share**
+Generate a shareable link for a note.
+
+**Body:**
+```json
+{
+  "id": 123
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "shareid": "abc123xyz"
+}
+```
+
+Share URL: `https://your-domain.com/shared/abc123xyz`
+
+---
+
+### 🎯 Targets/Goals
+
+#### **GET /api/targets**
+Get all targets with progress calculations.
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "date": "2026-12-31",
+    "message": "Complete project",
+    "created_at": "1/28/2026, 10:00:00 AM",
+    "days": 337,
+    "hours": 12,
+    "progressPercentage": 15
+  }
+]
+```
+
+#### **POST /api/targets**
+Create a new target.
+
+**Body:**
+```json
+{
+  "date": "2026-12-31",
+  "message": "My goal description"
+}
+```
+
+#### **DELETE /api/targets?id=123**
+Delete a target.
+
+---
+
+### 📊 Dashboard Statistics
+
+#### **GET /api/dashboard/stats**
+Get comprehensive dashboard statistics.
+
+**Response:**
+```json
+{
+  "totalNotes": 150,
+  "totalTrashed": 5,
+  "totalFavorites": 20,
+  "notesToday": 3,
+  "notesThisWeek": 15,
+  "recentNotes": [...],
+  "recentNotifications": [...],
+  "categoryStats": { "Work": 50, "Personal": 100 },
+  "upcomingTargets": [...]
+}
+```
+
+#### **GET /api/dashboard/activity**
+Get recent activity timeline.
+
+#### **GET /api/dashboard/productivity**
+Get productivity stats for the last 7 days.
+
+**Response:**
+```json
+[
+  { "date": "Jan 22", "count": 5 },
+  { "date": "Jan 23", "count": 3 },
+  ...
+]
+```
+
+---
+
+### 🔔 Notifications
+
+#### **GET /api/notifications**
+Get notifications with optional filtering.
+
+**Query Parameters:**
+- `filter` (optional): Filter by category or `*` for all
+
+**Response:**
+```json
+[
+  [
+    {
+      "id": 1,
+      "title": "Note Added with id 123",
+      "created_at": "1/28/2026, 10:30:00 AM",
+      "category": "noteadded",
+      "label": "Note added"
+    }
+  ],
+  [
+    { "category": "*", "label": "All" },
+    { "category": "noteadded", "label": "Note added" }
+  ]
+]
+```
+
+#### **DELETE /api/notifications?id=123**
+Delete a notification.
+
+---
+
+### 📨 Messages/Inbox
+
+#### **GET /api/messages**
+Get all inbox messages.
+
+#### **POST /api/messages**
+Create a new message.
+
+**Body:**
+```json
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "message": "Hello!"
+}
+```
+
+#### **DELETE /api/messages?id=123**
+Delete a message.
+
+---
+
+### ⚙️ Settings
+
+#### **PUT /api/settings/password**
+Change admin password.
+
+**Body:**
+```json
+{
+  "newPassword": "your_new_password"
+}
+```
+
+**Note:** Password must be at least 6 characters.
+
+---
+
+### 🔑 API Token Management
+
+#### **GET /api/auth/token**
+Get all API tokens (requires cookie auth).
+
+#### **POST /api/auth/token**
+Generate a new API token (requires cookie auth).
+
+**Body:**
+```json
+{
+  "name": "My Mobile App"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "token": "your_64_character_token_here",
+  "name": "My Mobile App",
+  "id": 1,
+  "message": "Use this token in the X-API-Token header"
+}
+```
+
+#### **DELETE /api/auth/token**
+Revoke an API token (requires cookie auth).
+
+---
+
+### Error Responses
+
+All endpoints return consistent error responses:
+
+**400 Bad Request:**
+```json
+{
+  "success": false,
+  "message": "Missing required fields"
+}
+```
+
+**401 Unauthorized:**
+```json
+{
+  "message": "Unauthorized. Please provide valid authentication via session cookie or X-API-Token header."
+}
+```
+
+**404 Not Found:**
+```json
+{
+  "success": false,
+  "message": "Note not found"
+}
+```
+
+**429 Too Many Requests:**
+```json
+{
+  "message": "Too many requests. Please try again in 45 seconds.",
+  "retryAfter": 45
+}
+```
+
+**500 Internal Server Error:**
+```json
+{
+  "success": false,
+  "message": "Internal server error"
+}
+```
+
+---
+
+### Security Best Practices
+
+1. **Keep your API token secret** - Never commit tokens to version control
+2. **Use HTTPS** - All API requests should be made over HTTPS
+3. **Token rotation** - Regularly rotate your API tokens
+4. **Rate limiting** - Respect rate limits to avoid service disruption
+5. **Validate input** - The API validates all inputs, but clients should too
+6. **Error handling** - Always handle error responses gracefully
+
+---
+
+### Example Mobile App Integration
+
+```javascript
+// React Native / Mobile App Example
+const API_BASE_URL = 'https://your-domain.com';
+const API_TOKEN = 'your_token_here';
+
+async function fetchNotes() {
+  const response = await fetch(`${API_BASE_URL}/api/notes`, {
+    headers: {
+      'X-API-Token': API_TOKEN,
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  if (response.status === 429) {
+    const data = await response.json();
+    console.log(`Rate limited. Retry after ${data.retryAfter} seconds`);
+    return;
+  }
+  
+  return await response.json();
+}
+
+async function createNote(title, body) {
+  const response = await fetch(`${API_BASE_URL}/api/notes`, {
+    method: 'POST',
+    headers: {
+      'X-API-Token': API_TOKEN,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ title, body })
+  });
+  
+  return await response.json();
+}
+```
+
+---
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

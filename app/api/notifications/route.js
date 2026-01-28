@@ -14,9 +14,9 @@ export async function GET(request) {
 
         let result = [];
         if (filter === "*") {
-            result = await sql.query("SELECT * FROM notifications ORDER BY created_at DESC LIMIT 40");
+            result = await sql`SELECT * FROM notifications ORDER BY created_at DESC LIMIT 40`;
         } else {
-            result = await sql.query(`SELECT * FROM notifications where category='${filter}' ORDER BY created_at DESC LIMIT 40`);
+            result = await sql`SELECT * FROM notifications WHERE category = ${filter} ORDER BY created_at DESC LIMIT 40`;
         }
 
         let obj = [];
@@ -43,6 +43,36 @@ export async function GET(request) {
         return NextResponse.json([result, obj]);
     } catch (error) {
         console.error('Error fetching notifications:', error);
-        return NextResponse.json([[], []], { status: 500 });
+        return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+    }
+}
+
+export async function DELETE(request) {
+    const auth = await requireAuth(request);
+    if (auth.error) {
+        return NextResponse.json({ message: auth.message }, { status: auth.status });
+    }
+
+    try {
+        const { searchParams } = new URL(request.url);
+        const id = searchParams.get('id');
+
+        if (!id) {
+            return NextResponse.json({
+                success: false,
+                message: 'Notification ID is required'
+            }, { status: 400 });
+        }
+
+        const res = await sql`DELETE FROM notifications WHERE id = ${id} RETURNING id`;
+
+        if (res.length === 0) {
+            return NextResponse.json({ success: false, message: 'Notification not found' }, { status: 404 });
+        }
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error('Error deleting notification:', error);
+        return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
     }
 }

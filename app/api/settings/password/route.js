@@ -11,14 +11,36 @@ export async function PUT(request) {
 
     try {
         const { newPassword } = await request.json();
+
+        if (!newPassword || newPassword.length < 6) {
+            return NextResponse.json({
+                success: false,
+                message: 'Password must be at least 6 characters'
+            }, { status: 400 });
+        }
+
         const date = new Date().toLocaleString("en-US", { timeZone: "Asia/Kathmandu" });
-        await sql.query(`INSERT INTO notifications (title, created_at, category, label) VALUES ('Admin Password Changed', '${date}','passwordchange','Password Change')`);
         const encryptedPass = AES.encrypt(newPassword, process.env.SESSION_SECRET).toString();
-        const res = await sql.query(`update password set pass = '${encryptedPass}', last_updated='${date}' where id = 1 returning id`);
+
+        const res = await sql`
+            UPDATE password 
+            SET pass = ${encryptedPass}, last_updated = ${date} 
+            WHERE id = 1 
+            RETURNING id
+        `;
+
+        if (res.length === 0) {
+            return NextResponse.json({ success: false, message: 'Failed to update password' }, { status: 500 });
+        }
+
+        await sql`
+            INSERT INTO notifications (title, created_at, category, label) 
+            VALUES ('Admin Password Changed', ${date}, 'passwordchange', 'Password Change')
+        `;
 
         return NextResponse.json({ success: true, id: res[0].id });
     } catch (error) {
         console.error("Error changing password:", error);
-        return NextResponse.json({ success: false }, { status: 500 });
+        return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
     }
 }

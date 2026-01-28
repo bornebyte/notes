@@ -10,21 +10,38 @@ export async function PUT(request) {
 
     try {
         const { id, trash } = await request.json();
+
+        if (!id) {
+            return NextResponse.json({ success: false, message: 'Note ID is required' }, { status: 400 });
+        }
+
         const date = new Date().toLocaleString("en-US", { timeZone: "Asia/Kathmandu" });
 
         if (trash) {
-            const res = await sql.query(`update notes set trash='true' WHERE id = ${id} returning id`);
+            const res = await sql`UPDATE notes SET trash = TRUE WHERE id = ${id} RETURNING id`;
+            if (res.length === 0) {
+                return NextResponse.json({ success: false, message: 'Note not found' }, { status: 404 });
+            }
             const deletedID = res[0].id;
-            await sql.query(`INSERT INTO notifications (title, created_at, category, label) VALUES ('Note trashed with id ${deletedID}', '${date}','notetrashed','Note trashed')`);
+            await sql`
+                INSERT INTO notifications (title, created_at, category, label) 
+                VALUES (${`Note trashed with id ${deletedID}`}, ${date}, 'notetrashed', 'Note trashed')
+            `;
         } else {
-            const res = await sql.query(`update notes set trash='false' WHERE id = ${id} returning id`);
+            const res = await sql`UPDATE notes SET trash = FALSE WHERE id = ${id} RETURNING id`;
+            if (res.length === 0) {
+                return NextResponse.json({ success: false, message: 'Note not found' }, { status: 404 });
+            }
             const deletedID = res[0].id;
-            await sql.query(`INSERT INTO notifications (title, created_at, category, label) VALUES ('Note recovered with id ${deletedID}', '${date}','notedrecovered','Note recovered')`);
+            await sql`
+                INSERT INTO notifications (title, created_at, category, label) 
+                VALUES (${`Note recovered with id ${deletedID}`}, ${date}, 'noterecovered', 'Note recovered')
+            `;
         }
 
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Error updating trash status:', error);
-        return NextResponse.json({ success: false }, { status: 500 });
+        return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
     }
 }

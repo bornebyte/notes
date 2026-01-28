@@ -9,7 +9,7 @@ export async function GET(request) {
     }
 
     try {
-        const res = await sql.query(`SELECT * FROM targetdate`);
+        const res = await sql`SELECT * FROM targetdate ORDER BY date ASC`;
 
         let data = res.map((row) => {
             const today = new Date();
@@ -34,7 +34,7 @@ export async function GET(request) {
         return NextResponse.json(data);
     } catch (error) {
         console.error("Error fetching targets:", error);
-        return NextResponse.json([], { status: 500 });
+        return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
     }
 }
 
@@ -46,13 +46,25 @@ export async function POST(request) {
 
     try {
         const { date, message } = await request.json();
+
+        if (!date || !message) {
+            return NextResponse.json({
+                success: false,
+                message: 'Date and message are required'
+            }, { status: 400 });
+        }
+
         const today = new Date().toLocaleString("en-US", { timeZone: "Asia/Kathmandu" });
-        const res = await sql.query(`insert into targetdate (date, created_at, message) values ('${date}', '${today}','${message}') returning id`);
+        const res = await sql`
+            INSERT INTO targetdate (date, created_at, message) 
+            VALUES (${date}, ${today}, ${message}) 
+            RETURNING id
+        `;
 
         return NextResponse.json({ success: true, id: res[0].id });
     } catch (error) {
         console.error("Error adding target:", error);
-        return NextResponse.json({ success: false, id: null }, { status: 500 });
+        return NextResponse.json({ success: false, id: null, message: 'Internal server error' }, { status: 500 });
     }
 }
 
@@ -63,15 +75,31 @@ export async function DELETE(request) {
     }
 
     try {
-        const { id } = await request.json();
-        await sql.query(`DELETE FROM targetdate WHERE id = ${id}`);
+        const { searchParams } = new URL(request.url);
+        const id = searchParams.get('id');
+
+        if (!id) {
+            return NextResponse.json({
+                success: false,
+                message: 'Target ID is required'
+            }, { status: 400 });
+        }
+
+        const res = await sql`DELETE FROM targetdate WHERE id = ${id} RETURNING id`;
+
+        if (res.length === 0) {
+            return NextResponse.json({ success: false, message: 'Target not found' }, { status: 404 });
+        }
 
         const date = new Date().toLocaleString("en-US", { timeZone: "Asia/Kathmandu" });
-        await sql.query(`INSERT INTO notifications (title, created_at, category, label) VALUES ('Target deleted', '${date}','targetdeleted','Target Deleted')`);
+        await sql`
+            INSERT INTO notifications (title, created_at, category, label) 
+            VALUES ('Target deleted', ${date}, 'targetdeleted', 'Target Deleted')
+        `;
 
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error("Error deleting target:", error);
-        return NextResponse.json({ success: false }, { status: 500 });
+        return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
     }
 }

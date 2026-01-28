@@ -10,15 +10,28 @@ export async function POST(request) {
 
     try {
         const { id } = await request.json();
+
+        if (!id) {
+            return NextResponse.json({ success: false, message: 'Note ID is required' }, { status: 400 });
+        }
+
         let shareid = Date.now().toString(36);
-        const res = await sql.query(`update notes set shareid='${shareid}' WHERE id = ${id} returning shareid`);
+        const res = await sql`UPDATE notes SET shareid = ${shareid} WHERE id = ${id} RETURNING shareid`;
+
+        if (res.length === 0) {
+            return NextResponse.json({ success: false, message: 'Note not found' }, { status: 404 });
+        }
+
         const shareID = res[0].shareid;
         const date = new Date().toLocaleString("en-US", { timeZone: "Asia/Kathmandu" });
-        await sql.query(`INSERT INTO notifications (title, created_at, category, label) VALUES ('Share id created with id ${shareID}', '${date}','shareidcreated','Share ID Created')`);
+        await sql`
+            INSERT INTO notifications (title, created_at, category, label) 
+            VALUES (${`Share id created with id ${shareID}`}, ${date}, 'shareidcreated', 'Share ID Created')
+        `;
 
         return NextResponse.json({ success: true, shareid: shareID });
     } catch (error) {
         console.error('Error generating share ID:', error);
-        return NextResponse.json({ success: false, shareid: null }, { status: 500 });
+        return NextResponse.json({ success: false, shareid: null, message: 'Internal server error' }, { status: 500 });
     }
 }
