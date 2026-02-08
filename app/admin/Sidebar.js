@@ -1,5 +1,5 @@
 "use client"
-import { Home, Inbox, NotebookPen, Settings, Menu, CircleX, Tally5 } from 'lucide-react';
+import { Home, Inbox, NotebookPen, Settings, Menu, CircleX, Tally5, Presentation } from 'lucide-react';
 import Link from 'next/link';
 import React, { useState } from 'react'
 
@@ -54,6 +54,14 @@ const Sidebar = () => {
                     >
                         <Tally5 />
                         <span>Target</span>
+                    </Link>
+                    <Link
+                        href={"/admin/generations"}
+                        className='flex items-center justify-center gap-4 hover:bg-accent/50 transition-all duration-300 px-6 py-2 rounded-lg w-full hover:scale-105 hover:translate-x-2 hover:shadow-md'
+                        onClick={() => setToggleSidebar(!toggleSidebar)}
+                    >
+                        <Presentation />
+                        <span>Generations</span>
                     </Link>
                     <Link
                         href={"/admin/settings"}
