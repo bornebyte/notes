@@ -19,7 +19,7 @@ const Sidebar = () => {
                 }
             </button>
             <div className={`w-full md:w-fit md:px-20 overflow-hidden bg-card border rounded-xl z-20 shadow-lg transition-all duration-500 ease-in-out transform origin-top ${toggleSidebar
-                ? 'max-h-96 opacity-100 scale-y-100 translate-y-0'
+                ? 'max-h-[32rem] opacity-100 scale-y-100 translate-y-0'
                 : 'max-h-0 opacity-0 scale-y-0 -translate-y-4'
                 }`}>
                 <div className='flex flex-col gap-6 items-center py-10'>
