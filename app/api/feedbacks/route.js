@@ -24,6 +24,8 @@ export async function GET(request) {
         // Forward all query parameters to external API
         const externalUrl = `${EXTERNAL_DOMAIN}/api/feedbacks?${searchParams.toString()}`;
 
+        console.log('Fetching feedback from:', externalUrl);
+
         // Fetch from external API
         const response = await fetch(externalUrl, {
             method: 'GET',
@@ -33,8 +35,11 @@ export async function GET(request) {
             cache: 'no-store',
         });
 
+        console.log('External API response status:', response.status);
+
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({ error: 'Failed to fetch feedback' }));
+            console.error('External API error:', errorData);
             return NextResponse.json(
                 { error: errorData.error || 'Failed to fetch feedback from external API' },
                 { status: response.status }

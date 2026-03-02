@@ -336,6 +336,7 @@ export default function GenerationsClient({ initialData, initialError, apiStatus
             const queryParams = new URLSearchParams(params);
             const response = await fetch(`/api/feedbacks?${queryParams.toString()}`, {
                 method: 'GET',
+                credentials: 'include',
                 cache: 'no-store',
             });
 
@@ -364,6 +365,7 @@ export default function GenerationsClient({ initialData, initialError, apiStatus
         try {
             const response = await fetch(`/api/feedbacks/${id}`, {
                 method: 'GET',
+                credentials: 'include',
                 cache: 'no-store',
             });
 
@@ -396,6 +398,7 @@ export default function GenerationsClient({ initialData, initialError, apiStatus
 
             const response = await fetch(`/api/feedbacks/export?${queryParams.toString()}`, {
                 method: 'GET',
+                credentials: 'include',
                 signal: AbortSignal.timeout(30000),
             });
 
