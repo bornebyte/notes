@@ -129,4 +129,5 @@ CREATE INDEX IF NOT EXISTS idx_api_tokens_created_at ON api_tokens(created_at DE
 -- - Boolean fields use PostgreSQL BOOLEAN type (TRUE/FALSE)
 -- - All primary keys are auto-incrementing SERIAL type
 -- - Indexes are created for commonly queried columns
+-- - Feedback system fetches data from external API (NEXT_PUBLIC_DOMAIN)
 -- =============================================================================

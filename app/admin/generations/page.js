@@ -1,5 +1,5 @@
 import GenerationsClient from "./GenerationsClient";
-import { getGenerations, checkAPIHealth } from "@/lib/api/generations";
+import { getGenerations } from "@/lib/api/generations";
 
 export const dynamic = 'force-dynamic';
 
@@ -9,22 +9,16 @@ export default async function GenerationsPage() {
     let apiStatus = 'unknown';
 
     try {
-        // First check if API is reachable
+        // Try to fetch data directly (health check is optional)
         try {
-            const health = await checkAPIHealth();
-            apiStatus = health.status === 'healthy' ? 'healthy' : 'unhealthy';
-        } catch (healthError) {
-            apiStatus = 'unreachable';
-            console.error('API health check failed:', healthError.message);
-        }
-
-        // If API is reachable, try to fetch initial data
-        if (apiStatus === 'healthy') {
             data = await getGenerations({ limit: 50, offset: 0 });
-        } else {
-            throw new Error('PPT API server is unreachable. Please check the configuration.');
+            apiStatus = 'healthy';
+        } catch (fetchError) {
+            console.error('Error fetching generations:', fetchError.message);
+            throw fetchError;
         }
     } catch (err) {
+        apiStatus = 'unreachable';
         console.error('Error loading generations:', err);
 
         // Provide user-friendly error messages
