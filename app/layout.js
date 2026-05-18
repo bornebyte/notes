@@ -7,6 +7,15 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 export const metadata = {
   title: `Notes - ${process.env.NEXT_PUBLIC_USERNAME || 'Personal Notes'}`,
   description: `Personal website and notes application`,
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/icons/icon.svg",
+    apple: "/logo.jpg",
+  },
+};
+
+export const viewport = {
+  themeColor: "#0a0a0a",
 };
 
 export default function RootLayout({ children }) {

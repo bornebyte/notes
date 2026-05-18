@@ -29,6 +29,7 @@
     "@tanstack/react-table": "^8.20.6",
     "@vercel/postgres": "^0.10.0",
     "@vercel/speed-insights": "^1.2.0",
+    "@ducanh2912/next-pwa": "^10.2.9",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "crypto-js": "^4.2.0",
