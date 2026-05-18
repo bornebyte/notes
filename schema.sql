@@ -113,6 +113,23 @@ CREATE INDEX IF NOT EXISTS idx_api_tokens_revoked ON api_tokens(revoked);
 CREATE INDEX IF NOT EXISTS idx_api_tokens_created_at ON api_tokens(created_at DESC);
 
 -- =============================================================================
+-- TABLE: push_subscriptions
+-- Stores Web Push subscription endpoints for admin devices
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id SERIAL PRIMARY KEY,
+    endpoint TEXT UNIQUE NOT NULL,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    user_agent TEXT,
+    device_name TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_created_at ON push_subscriptions(created_at DESC);
+
+-- =============================================================================
 -- SUMMARY
 -- =============================================================================
 -- Total Tables: 6
