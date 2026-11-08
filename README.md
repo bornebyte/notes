@@ -1,577 +1,110 @@
-<div align="center">
-  <h1 align="center">Notes - A Modern Note-Taking Web App</h1>
-  <p align="center">
-    Capture your thoughts, ideas, and tasks with a fast, secure, and feature-rich note-taking application.
-    <br />
-    <a href="https://github.com/bornebyte/notes"><strong>Explore the docs »</strong></a>
-    <br />
-    <br />
-    <a href="https://notes.shubham-shah.com.np/">View Demo</a>
-    ·
-    <a href="https://github.com/bornebyte/notes/issues">Report Bug</a>
-    ·
-    <a href="https://github.com/bornebyte/notes/issues">Request Feature</a>
-  </p>
-</div>
+# Notes
 
----
+Notes is a personal note-taking web application with a private admin area for managing notes and a remote MCP server that lets compatible AI clients work with notes when you authorize them.
 
-## About The Project
+The project is built with Next.js App Router, React, JavaScript, Tailwind CSS, and Neon Postgres. It can be run locally or deployed to a Node.js host such as Vercel.
 
-**Notes** is a full-stack web application designed for efficient and organized note-taking. Built with the latest web technologies, it provides a seamless user experience for creating, managing, and sharing notes. The application features a clean, modern interface with a powerful backend to keep your data safe and accessible.
+## What you can do
 
-From a quick memo to detailed notes with formatting, Notes is your personal digital notebook.
+- Create, edit, search, categorize, and format notes.
+- Mark notes as favorites and restore notes from the trash.
+- Generate links to share notes.
+- View note activity and statistics on the admin dashboard.
+- Manage targets, inbox messages, API tokens, and MCP connections from Settings.
+- Connect an MCP-compatible AI client after reviewing and approving its requested access.
 
-### Key Features
+## Using the app
 
-*   **📝 Create & Update Notes**: An intuitive dialog-based interface for adding and editing notes.
-*   **✍️ Simple Markdown Support**: Format your notes with **Bold**, *Italic*, __Underline__, and bulleted lists.
-*   **🗂️ Note Management**:
-    *   **Favorites**: Mark important notes for quick access.
-    *   **Trash**: Move notes to the trash instead of permanently deleting them, with an option to restore.
-*   **🔗 Shareable Notes**: Generate unique, secure links to share your notes with others.
-*   **📊 Admin Dashboard**: Visualize your note-taking activity with a monthly breakdown chart and see total note counts.
-*   **🔔 Notifications**: Get notified about activities like creating, updating, or sharing notes.
-*   **🔐 Secure**: User authentication and password management features.
-*   **📱 Responsive Design**: A collapsible sidebar and mobile-friendly layout for a great experience on any device.
+The home page is at `/`. Sign in at `/auth` with the admin password configured for your database. The admin area is at `/admin`.
 
-### Built With
+| Page | What it is for |
+| --- | --- |
+| `/admin` | Dashboard with activity and note statistics. |
+| `/admin/note` | Create, edit, search, favorite, share, export, and manage trashed notes. |
+| `/admin/target` | Manage target dates and goals. |
+| `/admin/inbox` | Review messages sent to the site's inbox. |
+| `/admin/generations` | View the connected generations service, when configured. |
+| `/admin/settings` | Change the admin password, manage API tokens, and review or revoke MCP connections. |
 
-This project leverages a modern, full-stack JavaScript ecosystem.
+Notes are private to the account by default. Shared links are for notes you choose to share. The MCP server also omits hidden and trashed notes from reads.
 
-*   **Next.js** - The React Framework for the Web
-*   **React** - Frontend library
-*   **Tailwind CSS** - Utility-first CSS framework
-*   **shadcn/ui** - Re-usable components built using Radix UI and Tailwind CSS
-*   **Neon** - Serverless Postgres database
-*   **Vercel** - Deployment and hosting
+## Run locally
 
-## 📚 Documentation
+### Requirements
 
-- **[Deployment Guide](DEPLOYMENT.md)** - Complete guide for deploying your own instance
-- **[API Reference](API_REFERENCE.md)** - Full API documentation
-- **[API Overview](API_OVERVIEW.md)** - Quick API overview
-- **[Security](SECURITY.md)** - Security policies and guidelines
-- **[MCP Server](MCP.md)** - Connect ChatGPT, Claude, and other MCP clients to Notes
-- **[Changelog](CHANGES.md)** - Version history and updates
+- Node.js compatible with the Next.js version in `package.json`
+- npm
+- A PostgreSQL database (Neon is used by the project)
 
-## Getting Started
+### Install and configure
 
-To get a local copy up and running, follow these simple steps.
+```sh
+git clone https://github.com/bornebyte/notes.git
+cd notes
+npm install
+cp .env.example .env.local
+```
 
-### Prerequisites
+Edit `.env.local` and set the database connection, a private session secret, and the local site origins:
 
-Make sure you have Node.js and npm (or yarn/pnpm/bun) installed on your machine.
+```env
+DATABASE_URL="postgresql://..."
+SESSION_SECRET="your-private-session-secret"
+NEXT_PUBLIC_DOMAIN="http://localhost:3000"
+MCP_BASE_URL="http://localhost:3000"
+```
 
-*   npm
-    ```sh
-    npm install npm@latest -g
-    ```
+`MCP_BASE_URL` is the canonical site origin used by MCP and OAuth. Keep it at the local origin for local development. In production it must be the public HTTPS origin, without a path. See [MCP.md](MCP.md) for the full MCP setup and connection details.
 
-### Installation
+Initialize the database:
 
-1.  **Clone the repo**
-    ```sh
-    git clone https://github.com/bornebyte/notes.git
-    cd notes
-    ```
+```sh
+npm run db:init
+```
 
-2.  **Install NPM packages**
-    ```sh
-    npm install --legacy-peer-deps
-    ```
+For an existing Notes database, use `npm run db:migrate` to apply the checked-in additive migrations instead. Both commands read `DATABASE_URL` from `.env.local`.
 
-3.  **Set up environment variables**
+Start the development server:
 
-    Create a `.env.local` file in the root of your project. You can copy the example file:
-    ```sh
-    cp .env.example .env.local
-    ```
-    Then, edit `.env.local` with your credentials:
-    ```env
-    DATABASE_URL="your_neon_database_connection_string"
-    SESSION_SECRET="your_session_secret_here"
-    NEXT_PUBLIC_DOMAIN="http://localhost:3000"  # Your domain URL
-    NEXT_PUBLIC_USERNAME="Your Name"            # Optional: Display name
-    NEXT_PUBLIC_LOGO="logo.jpg"                 # Optional: Logo filename
-    ```
-
-4.  **Initialize the database**
-
-    Run the SQL commands from `schema.sql` in your PostgreSQL database to create all required tables.
-
-5.  **Add your logo** (Optional)
-
-    Place a logo image file in the `/public` folder (e.g., `logo.jpg`) and update `NEXT_PUBLIC_LOGO` in `.env.local`.
-
-### Running the Application
-
-Run the development server:
-
-```bash
+```sh
 npm run dev
-# or
-yarn dev
-# or
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). Use the admin password configured for that database to sign in at `/auth`.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## MCP for AI clients
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The remote MCP endpoint is:
 
----
-
-## 🔌 API Documentation
-
-The Notes app provides a comprehensive REST API that supports both **cookie-based authentication** (for web apps) and **API token authentication** (for external apps and mobile clients).
-
-### Authentication Methods
-
-#### 1. Cookie-Based Authentication (Web)
-- Used by the web interface
-- Session managed via secure HTTP-only cookies
-- Automatically handled by the browser
-
-#### 2. API Token Authentication (External Apps)
-- Used for mobile apps, CLI tools, and third-party integrations
-- Include the `X-API-Token` header in all requests
-
-**Generating an API Token:**
-1. Log in to your account via the web interface
-2. Navigate to Settings → API Tokens
-3. Click "Generate New Token"
-4. Copy and securely store your token (it won't be shown again)
-
-**Using the API Token:**
-```bash
-curl -H "X-API-Token: your_token_here" https://your-domain.com/api/notes
+```text
+https://YOUR_NOTES_DOMAIN/api/mcp
 ```
 
-### Rate Limiting
-- **Default Limit**: 100 requests per minute per token/session
-- Rate limit headers included in responses:
-  - `X-RateLimit-Remaining`: Remaining requests
-  - `Retry-After`: Seconds to wait when rate limited (429 status)
+OAuth is the usual way to connect: the AI client opens Notes, you sign in, and you choose whether to grant read access, write access, or both. API-token authentication is also available for clients that support custom bearer headers. MCP write access can create or edit notes, move a note to trash, and restore it; permanent deletion is not exposed.
 
----
+For the full connection walkthrough—including every MCP/OAuth URL, authentication and refresh behavior, request and response shapes, tool parameters, source-file responsibilities, and deployment details—read the **[MCP integration guide](MCP.md)**.
 
-### 📝 Notes Endpoints
+## Project documentation
 
-#### **GET /api/notes**
-Get all notes or filter by type.
+- [MCP integration guide](MCP.md) — connect an AI client and understand the MCP implementation.
+- [Deployment guide](DEPLOYMENT.md) — deploy the Notes web application.
+- [REST API overview](API_OVERVIEW.md)
+- [REST API reference](API_REFERENCE.md)
+- [Security notes](SECURITY.md)
+- [Changelog](CHANGES.md)
 
-**Query Parameters:**
-- `type` (optional): Filter type - `favorites`, `trashed`
-- `query` (optional): Search term to filter notes
-- `shareid` (optional): Get a specific shared note
+## Useful commands
 
-**Example:**
-```bash
-# Get all notes
-curl -H "X-API-Token: YOUR_TOKEN" https://your-domain.com/api/notes
-
-# Get favorite notes
-curl -H "X-API-Token: YOUR_TOKEN" https://your-domain.com/api/notes?type=favorites
-
-# Search notes
-curl -H "X-API-Token: YOUR_TOKEN" https://your-domain.com/api/notes?query=javascript
+```sh
+npm run dev       # Start local development
+npm run build     # Build for deployment
+npm run start     # Start the production server
+npm run db:init   # Initialize a new database
+npm run db:migrate # Apply additive migrations to an existing database
 ```
 
-**Response:**
-```json
-[
-  {
-    "id": 1,
-    "title": "My Note",
-    "body": "Note content here",
-    "category": null,
-    "created_at": "1/28/2026, 10:30:00 AM",
-    "lastupdated": null,
-    "fav": false,
-    "trash": false,
-    "shareid": null
-  }
-]
-```
+## Configuration notes
 
-#### **POST /api/notes**
-Create a new note.
+Keep `.env.local` and all secrets out of version control. `DATABASE_URL` is used by the app and database scripts. `SESSION_SECRET` signs browser sessions and MCP consent forms. `NEXT_PUBLIC_USERNAME` and `NEXT_PUBLIC_LOGO` are optional display settings; see [.env.example](.env.example) for the complete list.
 
-**Body:**
-```json
-{
-  "title": "Note Title",
-  "body": "Note content",
-  "category": "Optional category"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "id": 123
-}
-```
-
-#### **PUT /api/notes**
-Update an existing note.
-
-**Body:**
-```json
-{
-  "id": 123,
-  "title": "Updated Title",
-  "body": "Updated content"
-}
-```
-
-#### **DELETE /api/notes?id=123&permanent=true**
-Permanently delete a note.
-
-**Query Parameters:**
-- `id` (required): Note ID
-- `permanent` (required): Must be `true` to permanently delete
-
----
-
-### ⭐ Favorite Notes
-
-#### **PUT /api/notes/favorite**
-Add or remove a note from favorites.
-
-**Body:**
-```json
-{
-  "id": 123,
-  "favorite": true
-}
-```
-
----
-
-### 🗑️ Trash Management
-
-#### **PUT /api/notes/trash**
-Move a note to trash or restore it.
-
-**Body:**
-```json
-{
-  "id": 123,
-  "trash": true
-}
-```
-
----
-
-### 🔗 Share Notes
-
-#### **POST /api/notes/share**
-Generate a shareable link for a note.
-
-**Body:**
-```json
-{
-  "id": 123
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "shareid": "abc123xyz"
-}
-```
-
-Share URL: `https://your-domain.com/shared/abc123xyz`
-
----
-
-### 🎯 Targets/Goals
-
-#### **GET /api/targets**
-Get all targets with progress calculations.
-
-**Response:**
-```json
-[
-  {
-    "id": 1,
-    "date": "2026-12-31",
-    "message": "Complete project",
-    "created_at": "1/28/2026, 10:00:00 AM",
-    "days": 337,
-    "hours": 12,
-    "progressPercentage": 15
-  }
-]
-```
-
-#### **POST /api/targets**
-Create a new target.
-
-**Body:**
-```json
-{
-  "date": "2026-12-31",
-  "message": "My goal description"
-}
-```
-
-#### **DELETE /api/targets?id=123**
-Delete a target.
-
----
-
-### 📊 Dashboard Statistics
-
-#### **GET /api/dashboard/stats**
-Get comprehensive dashboard statistics.
-
-**Response:**
-```json
-{
-  "totalNotes": 150,
-  "totalTrashed": 5,
-  "totalFavorites": 20,
-  "notesToday": 3,
-  "notesThisWeek": 15,
-  "recentNotes": [...],
-  "recentNotifications": [...],
-  "categoryStats": { "Work": 50, "Personal": 100 },
-  "upcomingTargets": [...]
-}
-```
-
-#### **GET /api/dashboard/activity**
-Get recent activity timeline.
-
-#### **GET /api/dashboard/productivity**
-Get productivity stats for the last 7 days.
-
-**Response:**
-```json
-[
-  { "date": "Jan 22", "count": 5 },
-  { "date": "Jan 23", "count": 3 },
-  ...
-]
-```
-
----
-
-### 🔔 Notifications
-
-#### **GET /api/notifications**
-Get notifications with optional filtering.
-
-**Query Parameters:**
-- `filter` (optional): Filter by category or `*` for all
-
-**Response:**
-```json
-[
-  [
-    {
-      "id": 1,
-      "title": "Note Added with id 123",
-      "created_at": "1/28/2026, 10:30:00 AM",
-      "category": "noteadded",
-      "label": "Note added"
-    }
-  ],
-  [
-    { "category": "*", "label": "All" },
-    { "category": "noteadded", "label": "Note added" }
-  ]
-]
-```
-
-#### **DELETE /api/notifications?id=123**
-Delete a notification.
-
----
-
-### 📨 Messages/Inbox
-
-#### **GET /api/messages**
-Get all inbox messages.
-
-#### **POST /api/messages**
-Create a new message.
-
-**Body:**
-```json
-{
-  "name": "John Doe",
-  "email": "john@example.com",
-  "message": "Hello!"
-}
-```
-
-#### **DELETE /api/messages?id=123**
-Delete a message.
-
----
-
-### ⚙️ Settings
-
-#### **PUT /api/settings/password**
-Change admin password.
-
-**Body:**
-```json
-{
-  "newPassword": "your_new_password"
-}
-```
-
-**Note:** Password must be at least 4 characters.
-
----
-
-### 🔑 API Token Management
-
-#### **GET /api/auth/token**
-Get all API tokens (requires cookie auth).
-
-#### **POST /api/auth/token**
-Generate a new API token (requires cookie auth).
-
-**Body:**
-```json
-{
-  "name": "My Mobile App"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "token": "your_64_character_token_here",
-  "name": "My Mobile App",
-  "id": 1,
-  "message": "Use this token in the X-API-Token header"
-}
-```
-
-#### **DELETE /api/auth/token**
-Revoke an API token (requires cookie auth).
-
----
-
-### Error Responses
-
-All endpoints return consistent error responses:
-
-**400 Bad Request:**
-```json
-{
-  "success": false,
-  "message": "Missing required fields"
-}
-```
-
-**401 Unauthorized:**
-```json
-{
-  "message": "Unauthorized. Please provide valid authentication via session cookie or X-API-Token header."
-}
-```
-
-**404 Not Found:**
-```json
-{
-  "success": false,
-  "message": "Note not found"
-}
-```
-
-**429 Too Many Requests:**
-```json
-{
-  "message": "Too many requests. Please try again in 45 seconds.",
-  "retryAfter": 45
-}
-```
-
-**500 Internal Server Error:**
-```json
-{
-  "success": false,
-  "message": "Internal server error"
-}
-```
-
----
-
-### Security Best Practices
-
-1. **Keep your API token secret** - Never commit tokens to version control
-2. **Use HTTPS** - All API requests should be made over HTTPS
-3. **Token rotation** - Regularly rotate your API tokens
-4. **Rate limiting** - Respect rate limits to avoid service disruption
-5. **Validate input** - The API validates all inputs, but clients should too
-6. **Error handling** - Always handle error responses gracefully
-
----
-
-### Example Mobile App Integration
-
-```javascript
-// React Native / Mobile App Example
-const API_BASE_URL = 'https://your-domain.com';
-const API_TOKEN = 'your_token_here';
-
-async function fetchNotes() {
-  const response = await fetch(`${API_BASE_URL}/api/notes`, {
-    headers: {
-      'X-API-Token': API_TOKEN,
-      'Content-Type': 'application/json'
-    }
-  });
-  
-  if (response.status === 429) {
-    const data = await response.json();
-    console.log(`Rate limited. Retry after ${data.retryAfter} seconds`);
-    return;
-  }
-  
-  return await response.json();
-}
-
-async function createNote(title, body) {
-  const response = await fetch(`${API_BASE_URL}/api/notes`, {
-    method: 'POST',
-    headers: {
-      'X-API-Token': API_TOKEN,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ title, body })
-  });
-  
-  return await response.json();
-}
-```
-
----
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+For an existing database, apply migrations before deploying code that depends on them. Back up the database before making production schema changes.
