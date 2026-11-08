@@ -116,14 +116,14 @@ export default function McpConnections() {
             </div>
 
             <div className="bg-muted/50 border rounded-lg p-4 my-5">
-                <p className="text-sm font-medium mb-2">ChatGPT server URL</p>
+                <p className="text-sm font-medium mb-2">MCP server URL</p>
                 <div className="flex items-center gap-2">
                     <code className="min-w-0 flex-1 break-all text-xs">{serverUrl || "Loading…"}</code>
                     <Button type="button" variant="outline" size="icon" onClick={copyServerUrl} disabled={!serverUrl} aria-label="Copy MCP server URL">
                         {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                     </Button>
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">After OAuth, finish the Install step in ChatGPT and enable the Notes tools in the app’s settings.</p>
+                <p className="text-xs text-muted-foreground mt-2">Add this URL to your MCP client. Use OAuth or a bearer API token from the API Tokens section, depending on the client, then enable the Notes tools in its settings.</p>
             </div>
 
             <div className="flex items-start gap-2 text-xs text-muted-foreground mb-5">

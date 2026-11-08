@@ -1,15 +1,15 @@
 # Notes MCP server
 
-This app exposes a remote MCP server at `https://your-domain.com/api/mcp`. It uses MCP Streamable HTTP and OAuth 2.1 authorization-code flow with PKCE, so compatible clients can discover the tools without a provider-specific integration.
+This app exposes an MCP server at `https://notes.example.com/api/mcp`. It uses MCP Streamable HTTP and OAuth 2.1 authorization-code flow with PKCE, so compatible clients can discover the tools without a provider-specific integration.
 
 ## Setup
 
-1. Set `MCP_BASE_URL` to the canonical HTTPS origin of the deployed site (no path), for example `https://notes.example.com`.
-2. For an existing Neon database, apply [`migrations/20261108_add_mcp.sql`](migrations/20261108_add_mcp.sql) and then [`migrations/20261108_add_mcp_grant_expiry.sql`](migrations/20261108_add_mcp_grant_expiry.sql) before deploying. Fresh databases created from `schema.sql` already include these structures.
+1. Set `MCP_BASE_URL` to the canonical HTTPS origin of the deployed site (no path), for example `https://notes.example.com`. Production requires this explicit value; preview deployment URLs are not used as the issuer.
+2. For an existing Notes database, run `pnpm db:migrate` before deploying. For a new database, run `pnpm db:init`. Both commands read `DATABASE_URL` from `.env.local` and apply only the checked-in schema or additive migrations. A new schema uses the app's default admin password; change it immediately after the first sign-in.
 3. Deploy the website over HTTPS. The OAuth authorization and protected-resource discovery documents are served at `/.well-known/oauth-authorization-server` and `/.well-known/oauth-protected-resource`.
-4. Add `https://your-domain.com/api/mcp` to an MCP client. The client will open the website login and permission screen, then obtain short-lived access tokens.
+4. Add `https://notes.example.com/api/mcp` to an MCP client. The client will open the website login and permission screen, then obtain short-lived access tokens.
 
-`MCP_BASE_URL` falls back to `NEXT_PUBLIC_DOMAIN`, then `VERCEL_URL`. Set it explicitly in production so OAuth issuer, token audience, callback URLs, and Host validation all use the same stable domain. Preview deployment hosts are intentionally not accepted as MCP hosts.
+In local development, set `NEXT_PUBLIC_DOMAIN=http://localhost:3000` and `MCP_BASE_URL=http://localhost:3000` in `.env.local`. If `MCP_BASE_URL` is omitted outside production, it defaults to `http://localhost:3000`. Plain HTTP is accepted only for loopback addresses; use the same hostname and port when connecting so Host and OAuth resource validation match.
 
 ## Tools
 
@@ -37,20 +37,33 @@ Add the same HTTPS URL as a remote Streamable HTTP MCP server and choose the cli
 
 ### Local clients
 
-Use the same HTTPS URL in any MCP client that supports Streamable HTTP and OAuth. Clients that support custom bearer headers can instead use an API token created in **Admin → Settings → API Tokens**:
+For local testing, run `pnpm dev` and connect a local MCP client to `http://localhost:3000/api/mcp`. A local client with OAuth support can use the authorization flow and sign in to the Notes app at `http://localhost:3000`. Hosted clients cannot reach a server bound to your computer's `localhost`; use a deployed HTTPS URL with those clients.
+
+Clients that support custom bearer headers can instead use an API token created in **Admin → Settings → API Tokens**:
 
 ```text
 Authorization: Bearer <api-token>
 ```
 
-That token grants both read and write access to the Notes API. Treat it as a password and revoke it in Settings if it is lost. API-token values are shown only when created and are stored as hashes.
+For a direct local check, create a token in **Admin → Settings → API Tokens**, then run this command and paste the token at the hidden prompt:
+
+```sh
+read -rsp "API token: " MCP_API_TOKEN || exit 1
+printf '\n'
+curl --fail-with-body http://localhost:3000/api/mcp -H "Authorization: Bearer ${MCP_API_TOKEN}" -H 'Accept: application/json, text/event-stream' -H 'Content-Type: application/json' --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"local-smoke-test","version":"1.0.0"}}}'
+curl_status=$?
+unset MCP_API_TOKEN
+exit "$curl_status"
+```
+
+An API token grants both read and write access to MCP tools. Treat it as a password and revoke it in Settings if it is lost. API-token values are shown only when created and are stored as hashes. OAuth clients receive only the scopes approved on the consent screen.
 
 ## Security behavior
 
 - OAuth uses exact registered redirect-URI matching, short-lived single-use authorization codes, PKCE `S256`, resource-bound tokens, one-hour access tokens, and rotating refresh tokens whose lifetime is chosen during consent (30 days by default).
 - Refresh grants default to 30 days and support 1 hour, 1 day, 7 days, or no expiry. No-expiry grants remain revocable from Settings; access tokens still rotate hourly.
 - Access tokens, refresh tokens, authorization codes, and API tokens are stored as SHA-256 digests; raw OAuth credentials are never persisted.
-- Requests require HTTPS in production, a valid resource-bound bearer token, per-tool scope checks, an allowed Host/Origin, bounded request sizes, and database-backed rate limits. OAuth consent forms also carry a short-lived HMAC token bound to the exact authorization request and signed admin session, so embedded browser contexts can complete consent without trusting an arbitrary Origin.
+- Requests require HTTPS in production (HTTP is limited to local loopback in development), a valid resource-bound bearer token, per-tool scope checks, an allowed Host/Origin, bounded request sizes, and database-backed rate limits. OAuth consent forms also carry a short-lived HMAC token bound to the exact authorization request and signed admin session, so embedded browser contexts can complete consent without trusting an arbitrary Origin.
 - Reads omit hidden and trashed notes. Search and list responses are bounded; full note reads are capped at 50,000 characters.
 - Connected clients can edit notes when the user grants `notes:write`. The MCP client/model receives the note content the user asks it to read, so connect only clients and model providers you trust.
 
