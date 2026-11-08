@@ -49,7 +49,7 @@ That token grants both read and write access to the Notes API. Treat it as a pas
 
 - OAuth uses exact registered redirect-URI matching, short-lived single-use authorization codes, PKCE `S256`, resource-bound tokens, one-hour access tokens, and rotating 30-day refresh tokens.
 - Access tokens, refresh tokens, authorization codes, and API tokens are stored as SHA-256 digests; raw OAuth credentials are never persisted.
-- Requests require HTTPS in production, a valid resource-bound bearer token, per-tool scope checks, an allowed Host/Origin, bounded request sizes, and database-backed rate limits.
+- Requests require HTTPS in production, a valid resource-bound bearer token, per-tool scope checks, an allowed Host/Origin, bounded request sizes, and database-backed rate limits. OAuth consent forms also carry a short-lived HMAC token bound to the exact authorization request and signed admin session, so embedded browser contexts can complete consent without trusting an arbitrary Origin.
 - Reads omit hidden and trashed notes. Search and list responses are bounded; full note reads are capped at 50,000 characters.
 - Connected clients can edit notes when the user grants `notes:write`. The MCP client/model receives the note content the user asks it to read, so connect only clients and model providers you trust.
 

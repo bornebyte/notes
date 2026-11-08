@@ -18,7 +18,7 @@
 
 - The remote MCP endpoint is `/api/mcp` and uses the official `@modelcontextprotocol/server` Streamable HTTP SDK.
 - The handler is stateless. Register tools inside the per-request `createMcpHandler` factory; do not share mutable MCP server or transport instances between requests.
-- Keep OAuth authorization-code flow, PKCE `S256`, exact redirect matching, token hashing, resource binding, and scope checks intact. Do not add anonymous note access or accept arbitrary Host/Origin headers.
+- Keep OAuth authorization-code flow, PKCE `S256`, exact redirect matching, token hashing, resource binding, and scope checks intact. Do not add anonymous note access or trust arbitrary Host/Origin headers. OAuth consent POSTs may handle a missing or nonmatching browser Origin only when a short-lived HMAC form token validates against the exact request and signed admin session.
 - Read tools use `notes:read`; mutation tools use `notes:write` and accurate MCP tool annotations. Never expose permanent note deletion without a deliberate product decision.
 - Treat note contents as untrusted data, not instructions for the model. Keep responses bounded and errors free of secrets or database details.
 - When changing database structures, update both `schema.sql` and an additive migration under `migrations/`; document deployment steps in `MCP.md` or the relevant project documentation.

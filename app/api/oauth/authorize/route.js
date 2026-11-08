@@ -3,20 +3,82 @@ import { sql } from "@/lib/db";
 import {
     getMcpOrigin,
     getMcpResource,
-    hasValidAdminSession,
+    getValidAdminSessionToken,
     htmlEscape,
     MCP_SCOPES,
+    createConsentToken,
     newSecret,
     rateLimit,
     readLimitedText,
     secureHeaders,
     digest,
+    verifyConsentToken,
 } from "@/lib/mcp/oauth";
 
 export const runtime = "nodejs";
 
+const authorizationStyles = `
+    :root{color-scheme:light dark;--background:0 0% 100%;--foreground:0 0% 3.9%;--card:0 0% 100%;--muted:0 0% 96.1%;--muted-foreground:0 0% 45.1%;--border:0 0% 89.8%;--primary:0 0% 9%;--primary-foreground:0 0% 98%;--ring:0 0% 3.9%;--success:158 64% 37%}
+    @media(prefers-color-scheme:dark){:root{--background:0 0% 3.9%;--foreground:0 0% 98%;--card:0 0% 3.9%;--muted:0 0% 14.9%;--muted-foreground:0 0% 63.9%;--border:0 0% 14.9%;--primary:0 0% 98%;--primary-foreground:0 0% 9%;--ring:0 0% 83.1%;--success:158 60% 52%}}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;background:hsl(var(--background));color:hsl(var(--foreground));font:15px/1.55 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+    .page{min-height:100vh;display:flex;flex-direction:column;padding:0 24px;background:radial-gradient(ellipse at 50% -25%,hsl(var(--muted)) 0,transparent 58%),hsl(var(--background))}
+    .topbar{width:100%;max-width:1040px;height:76px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid hsl(var(--border))}
+    .brand{display:flex;align-items:center;gap:11px;color:hsl(var(--foreground));font-weight:700;font-size:18px;letter-spacing:-.035em;text-decoration:none}
+    .brand-mark{width:34px;height:34px;display:grid;place-items:center;border-radius:10px;background:hsl(var(--primary));color:hsl(var(--primary-foreground));box-shadow:0 2px 8px #0002}
+    .brand-mark svg{width:19px;height:19px}
+    .secure-label{display:inline-flex;align-items:center;gap:7px;padding:7px 11px;border:1px solid hsl(var(--border));border-radius:999px;background:hsl(var(--card)/.75);color:hsl(var(--muted-foreground));font-size:12px;font-weight:600}
+    .secure-label svg{width:14px;height:14px;color:hsl(var(--success))}
+    main{width:100%;max-width:560px;margin:auto;padding:48px 0 56px}
+    .card{overflow:hidden;border:1px solid hsl(var(--border));border-radius:20px;background:hsl(var(--card));box-shadow:0 20px 65px #00000012}
+    .card-head{padding:32px 34px 25px;border-bottom:1px solid hsl(var(--border))}
+    .connection-mark{display:flex;align-items:center;margin-bottom:25px}
+    .app-mark,.notes-mark{width:42px;height:42px;display:grid;place-items:center;border:1px solid hsl(var(--border));border-radius:13px;background:hsl(var(--muted));color:hsl(var(--foreground))}
+    .app-mark{font-size:12px;font-weight:800;letter-spacing:.04em}
+    .notes-mark{background:hsl(var(--primary));color:hsl(var(--primary-foreground));border-color:transparent}
+    .notes-mark svg{width:21px;height:21px}
+    .connector{width:48px;height:1px;margin:0 10px;background:hsl(var(--border));position:relative}
+    .connector:after{content:"";position:absolute;right:0;top:-3px;width:6px;height:6px;border-top:1px solid hsl(var(--muted-foreground));border-right:1px solid hsl(var(--muted-foreground));transform:rotate(45deg)}
+    .eyebrow{margin:0 0 8px;color:hsl(var(--muted-foreground));font-size:11px;font-weight:750;letter-spacing:.12em;text-transform:uppercase}
+    h1{margin:0;font-size:clamp(25px,5vw,31px);line-height:1.18;letter-spacing:-.045em;font-weight:730}
+    .intro{margin:12px 0 0;color:hsl(var(--muted-foreground));font-size:14px;max-width:440px}
+    .client-name{color:hsl(var(--foreground));font-weight:650}
+    .card-body{padding:25px 34px 30px}
+    .section-title{display:flex;align-items:center;justify-content:space-between;margin:0 0 12px;font-size:12px;font-weight:700;letter-spacing:.04em}
+    .section-hint{color:hsl(var(--muted-foreground));font-size:11px;font-weight:500;letter-spacing:0}
+    .permissions{display:grid;gap:9px}
+    .permission{display:flex;align-items:flex-start;gap:12px;padding:14px;border:1px solid hsl(var(--border));border-radius:12px;background:hsl(var(--card));cursor:pointer;transition:border-color .15s,background-color .15s,transform .15s}
+    .permission:hover{border-color:hsl(var(--muted-foreground)/.55);background:hsl(var(--muted)/.48);transform:translateY(-1px)}
+    .permission:focus-within{outline:2px solid hsl(var(--ring));outline-offset:2px}
+    .permission input{width:17px;height:17px;margin:2px 0 0;flex:none;accent-color:hsl(var(--primary));cursor:pointer}
+    .permission-copy{min-width:0;flex:1}
+    .permission-title{display:block;font-weight:650;font-size:13px}
+    .permission-description{display:block;margin-top:3px;color:hsl(var(--muted-foreground));font-size:12px;line-height:1.45}
+    .scope-tag{flex:none;margin-top:1px;padding:3px 7px;border:1px solid hsl(var(--border));border-radius:6px;color:hsl(var(--muted-foreground));font:10px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .redirect-box{display:flex;align-items:flex-start;gap:11px;margin-top:18px;padding:13px 14px;border-radius:11px;background:hsl(var(--muted)/.65)}
+    .redirect-box svg{width:16px;height:16px;flex:none;margin-top:2px;color:hsl(var(--muted-foreground))}
+    .redirect-title{margin:0;font-size:11px;font-weight:700}
+    .redirect-uri{display:block;margin-top:3px;color:hsl(var(--muted-foreground));font:11px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;overflow-wrap:anywhere}
+    .actions{display:flex;flex-direction:row-reverse;gap:10px;margin-top:23px}
+    .button{min-height:42px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 17px;border:1px solid transparent;border-radius:9px;font:650 13px ui-sans-serif,system-ui,sans-serif;cursor:pointer;text-decoration:none;transition:transform .15s,background-color .15s,border-color .15s,box-shadow .15s}
+    .button svg{width:16px;height:16px}
+    .button:focus-visible{outline:2px solid hsl(var(--ring));outline-offset:3px}
+    .button:hover{transform:translateY(-1px)}
+    .button-primary{background:hsl(var(--primary));color:hsl(var(--primary-foreground));box-shadow:0 3px 10px #0002}
+    .button-primary:hover{filter:brightness(.92)}
+    .button-secondary{border-color:hsl(var(--border));background:hsl(var(--card));color:hsl(var(--foreground))}
+    .button-secondary:hover{background:hsl(var(--muted))}
+    .footnote{margin:17px 0 0;color:hsl(var(--muted-foreground));font-size:11px;text-align:center}
+    .footer{width:100%;max-width:1040px;margin:0 auto;padding:0 0 22px;color:hsl(var(--muted-foreground));font-size:11px;text-align:center}
+    .error-card{padding:34px}
+    .error-mark{width:42px;height:42px;display:grid;place-items:center;margin-bottom:22px;border:1px solid hsl(var(--border));border-radius:13px;background:hsl(var(--muted));font-size:19px}
+    .error-message{margin:17px 0 22px;padding:13px 15px;border:1px solid hsl(var(--border));border-radius:10px;background:hsl(var(--muted)/.65);color:hsl(var(--muted-foreground));font-size:13px}
+    @media(max-width:560px){.page{padding:0 16px}.topbar{height:66px}.secure-label{font-size:11px;padding:6px 9px}main{padding:26px 0 34px}.card{border-radius:16px}.card-head{padding:25px 22px 21px}.card-body{padding:21px 22px 24px}.scope-tag{display:none}.actions{flex-direction:column}.button{width:100%}.error-card{padding:26px 22px}}
+    @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important}}
+`;
+
 function errorPage(message, status = 400) {
-    return new NextResponse(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>MCP authorization</title><body><main><h1>Can't authorize this connection</h1><p>${htmlEscape(message)}</p></main></body></html>`, {
+    return new NextResponse(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta name="color-scheme" content="light dark"><title>MCP authorization · Notes</title><style>${authorizationStyles}</style></head><body><div class="page"><header class="topbar"><a class="brand" href="/"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M7 4.75h7l4 4v10.5H7a2 2 0 0 1-2-2v-10.5a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 5v4h4M8.5 13h7M8.5 16h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Notes</a><span class="secure-label"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 10V7a5 5 0 0 1 10 0v3m-11 0h12v10H6V10Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>Secure connection</span></header><main><section class="card error-card"><div class="error-mark" aria-hidden="true">!</div><p class="eyebrow">Authorization</p><h1>Can’t authorize this connection</h1><p class="intro">The connection could not be completed. Return to your AI client and start the connection again.</p><p class="error-message">${htmlEscape(message)}</p><a class="button button-secondary" href="/">Back to Notes</a></section></main><footer class="footer">Your notes stay protected by your account permissions.</footer></div></body></html>`, {
         status,
         headers: secureHeaders({
             "Content-Type": "text/html; charset=utf-8",
@@ -83,14 +145,20 @@ function toLogin(request, params = new URL(request.url).searchParams) {
 export async function GET(request) {
     try {
         const authorization = await getAuthorizationRequest(new URL(request.url).searchParams);
-        if (!await hasValidAdminSession()) return toLogin(request);
+        const sessionToken = await getValidAdminSessionToken();
+        if (!sessionToken) return toLogin(request);
+        const consentToken = createConsentToken(authorization, sessionToken);
 
         const scopeDescriptions = {
-            "notes:read": "view and search notes",
-            "notes:write": "create, update, trash, and restore notes",
+            "notes:read": "View and search notes. Note titles and short excerpts may be shared with this AI client.",
+            "notes:write": "Create, edit, move notes to trash, and restore notes when you ask.",
+        };
+        const scopeTitles = {
+            "notes:read": "Read your notes",
+            "notes:write": "Make changes to your notes",
         };
         const scopeOptions = authorization.requestedScopes
-            .map((scope) => `<label><input type="checkbox" name="approved_scope" value="${htmlEscape(scope)}" checked> ${htmlEscape(scope)} — ${scopeDescriptions[scope]}</label>`)
+            .map((scope) => `<label class="permission"><input type="checkbox" name="approved_scope" value="${htmlEscape(scope)}" checked><span class="permission-copy"><span class="permission-title">${htmlEscape(scopeTitles[scope])}</span><span class="permission-description">${htmlEscape(scopeDescriptions[scope])}</span></span><span class="scope-tag">${htmlEscape(scope)}</span></label>`)
             .join("");
         const hidden = [
             ["client_id", authorization.clientId],
@@ -101,12 +169,14 @@ export async function GET(request) {
             ["scope", authorization.requestedScopes.join(" ")],
             ["state", authorization.state],
             ["resource", authorization.resource],
+            ["consent_token", consentToken],
         ].map(([key, value]) => `<input type="hidden" name="${key}" value="${htmlEscape(value)}">`).join("");
 
         const html = `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Connect ${htmlEscape(authorization.clientName)}</title>
-<style>body{font:16px system-ui,sans-serif;background:#f4f4f5;color:#18181b;margin:0;padding:32px}.card{max-width:520px;margin:8vh auto;background:white;border:1px solid #ddd;border-radius:16px;padding:28px;box-shadow:0 10px 40px #0001}h1{font-size:1.5rem}.scope{display:grid;gap:14px;padding:16px;background:#f4f4f5;border-radius:10px}.actions{display:flex;gap:12px;margin-top:24px}button{border:0;border-radius:8px;padding:11px 18px;font:inherit;cursor:pointer}.allow{background:#18181b;color:white}.deny{background:#e4e4e7}code{word-break:break-all}</style></head>
-<body><main class="card"><h1>Connect ${htmlEscape(authorization.clientName)}</h1><p>This client is requesting access to your notes. Choose only the permissions it needs.</p><p>OAuth will send a one-time code to <code>${htmlEscape(authorization.redirectUri)}</code>.</p><form method="post" action="${htmlEscape(`${getMcpOrigin()}/api/oauth/authorize`)}">${hidden}<div class="scope">${scopeOptions}</div><div class="actions"><button class="allow" name="decision" value="approve">Allow access</button><button class="deny" name="decision" value="deny">Cancel</button></div></form><p><small>Access expires automatically. You can revoke this connection in Settings.</small></p></main></body></html>`;
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta name="color-scheme" content="light dark"><title>Connect ${htmlEscape(authorization.clientName)} · Notes</title><style>${authorizationStyles}</style></head>
+<body><div class="page"><header class="topbar"><a class="brand" href="/"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M7 4.75h7l4 4v10.5H7a2 2 0 0 1-2-2v-10.5a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 5v4h4M8.5 13h7M8.5 16h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Notes</a><span class="secure-label"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 10V7a5 5 0 0 1 10 0v3m-11 0h12v10H6V10Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>Secure OAuth</span></header>
+<main><section class="card" aria-labelledby="consent-title"><div class="card-head"><div class="connection-mark" aria-hidden="true"><span class="app-mark">AI</span><span class="connector"></span><span class="notes-mark"><svg viewBox="0 0 24 24" fill="none"><path d="M7 4.75h7l4 4v10.5H7a2 2 0 0 1-2-2v-10.5a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 5v4h4M8.5 13h7M8.5 16h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div><p class="eyebrow">Permission review</p><h1 id="consent-title">Connect ${htmlEscape(authorization.clientName)} to Notes</h1><p class="intro"><span class="client-name">${htmlEscape(authorization.clientName)}</span> wants to connect to your notes. Choose the permissions you want to grant.</p></div>
+<div class="card-body"><p class="section-title">Access requested <span class="section-hint">You can change this selection</span></p><form method="post" action="${htmlEscape(`${getMcpOrigin()}/api/oauth/authorize`)}">${hidden}<div class="permissions" role="group" aria-label="Choose Notes permissions">${scopeOptions}</div><div class="redirect-box"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 10V7a5 5 0 0 1 10 0v3m-11 0h12v10H6V10Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><div><p class="redirect-title">Secure one-time redirect</p><code class="redirect-uri">${htmlEscape(authorization.redirectUri)}</code></div></div><div class="actions"><button class="button button-primary" type="submit" name="decision" value="approve">Allow selected access <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="button button-secondary" type="submit" name="decision" value="deny">Cancel</button></div></form><p class="footnote">Only the permissions selected above will be granted. You can revoke this connection later in Admin Settings.</p></div></section></main><footer class="footer">Notes · Your authorization can be revoked at any time.</footer></div></body></html>`;
 
         return new NextResponse(html, {
             headers: secureHeaders({
@@ -122,7 +192,7 @@ export async function GET(request) {
 export async function POST(request) {
     try {
         const origin = request.headers.get("origin");
-        if (!origin || origin !== getMcpOrigin()) return errorPage("This request did not come from the website.", 403);
+        const sameOrigin = origin === getMcpOrigin();
         const size = Number(request.headers.get("content-length") || 0);
         if (size > 8192) return errorPage("The authorization request is too large.", 413);
         if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/x-www-form-urlencoded")) {
@@ -132,13 +202,25 @@ export async function POST(request) {
         if (!limit.allowed) return errorPage("Too many authorization attempts. Try again shortly.", 429);
         const body = await readLimitedText(request, 8192);
         const form = new URLSearchParams(body);
-        if (!await hasValidAdminSession()) {
+        if (form.getAll("consent_token").length !== 1) {
+            return errorPage("This authorization form is invalid. Restart the connection.", 403);
+        }
+        const sessionToken = await getValidAdminSessionToken();
+        if (!sessionToken) {
             const preserved = new URLSearchParams(form);
             preserved.delete("decision");
             preserved.delete("approved_scope");
+            preserved.delete("consent_token");
             return toLogin(request, preserved);
         }
         const authorization = await getAuthorizationRequest(form);
+        const validConsent = verifyConsentToken(form.get("consent_token"), authorization, sessionToken);
+        if (!validConsent) {
+            return errorPage(
+                sameOrigin ? "This authorization form expired. Restart the connection." : "This request did not come from the website.",
+                403,
+            );
+        }
         const callback = new URL(authorization.redirectUri);
         const issuer = getMcpOrigin();
         const state = authorization.state;
