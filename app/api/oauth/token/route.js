@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 import {
     digest,
+    getMcpOrigin,
     getMcpResource,
     isMcpGrantDuration,
     newSecret,
@@ -101,7 +102,8 @@ export async function POST(request) {
             const code = form.get("code");
             const redirectUri = form.get("redirect_uri");
             const verifier = form.get("code_verifier");
-            const resource = form.get("resource") || getMcpResource();
+            let resource = form.get("resource") || getMcpResource();
+            if (resource === getMcpOrigin()) resource = getMcpResource();
             if (!/^[A-Za-z0-9._~-]{43,128}$/.test(verifier)) return tokenError("invalid_grant");
 
             const codes = await sql`
@@ -144,7 +146,8 @@ export async function POST(request) {
         if (form.get("grant_type") === "refresh_token") {
             if (form.getAll("refresh_token").length !== 1) return tokenError("invalid_request");
             const refreshToken = form.get("refresh_token");
-            const resource = form.get("resource");
+            let resource = form.get("resource");
+            if (resource === getMcpOrigin()) resource = getMcpResource();
             const tokens = await sql`
                 SELECT scope, resource, grant_duration, refresh_expires_at
                 FROM mcp_oauth_tokens
@@ -178,7 +181,7 @@ export async function POST(request) {
 
         return tokenError("unsupported_grant_type");
     } catch (error) {
-        if (error?.message !== "request_too_large") console.error("MCP OAuth token request failed.");
+
         return tokenError(error?.message === "request_too_large" ? "invalid_request" : "server_error", error?.message === "request_too_large" ? 413 : 500);
     }
 }

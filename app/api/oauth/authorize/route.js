@@ -115,14 +115,17 @@ async function getAuthorizationRequest(params) {
     const responseType = params.get("response_type");
     const challenge = params.get("code_challenge");
     const challengeMethod = params.get("code_challenge_method");
-    const resource = params.get("resource") || getMcpResource();
     const state = params.get("state") || "";
+    const resource = params.get("resource") || getMcpResource();
+    const canonicalResource = getMcpResource();
+    const allowedResources = new Set([canonicalResource, getMcpOrigin()]);
+
+    if (!allowedResources.has(resource)) throw new Error("bad resource");
     const requestedScopes = [...new Set((params.get("scope") || "notes:read").split(/\s+/).filter(Boolean))];
 
     if (!clientId || !redirectUri || responseType !== "code"
         || challengeMethod !== "S256" || !/^[A-Za-z0-9_-]{43}$/.test(challenge)
-        || state.length > 512 || resource !== getMcpResource()
-        || requestedScopes.length < 1
+        || state.length > 2048 || requestedScopes.length < 1
         || requestedScopes.some((scope) => !MCP_SCOPES.includes(scope))) {
         throw new Error("The authorization request is invalid or asks for unsupported permissions.");
     }
@@ -144,7 +147,7 @@ async function getAuthorizationRequest(params) {
         redirectUri,
         challenge,
         state,
-        resource,
+        resource: canonicalResource,
         requestedScopes,
     };
 }
