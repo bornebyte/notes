@@ -5,7 +5,7 @@ This app exposes a remote MCP server at `https://your-domain.com/api/mcp`. It us
 ## Setup
 
 1. Set `MCP_BASE_URL` to the canonical HTTPS origin of the deployed site (no path), for example `https://notes.example.com`.
-2. Apply [`migrations/20261108_add_mcp.sql`](migrations/20261108_add_mcp.sql) to an existing Neon database before deploying. Fresh databases created from `schema.sql` already include these tables.
+2. For an existing Neon database, apply [`migrations/20261108_add_mcp.sql`](migrations/20261108_add_mcp.sql) and then [`migrations/20261108_add_mcp_grant_expiry.sql`](migrations/20261108_add_mcp_grant_expiry.sql) before deploying. Fresh databases created from `schema.sql` already include these structures.
 3. Deploy the website over HTTPS. The OAuth authorization and protected-resource discovery documents are served at `/.well-known/oauth-authorization-server` and `/.well-known/oauth-protected-resource`.
 4. Add `https://your-domain.com/api/mcp` to an MCP client. The client will open the website login and permission screen, then obtain short-lived access tokens.
 
@@ -23,7 +23,7 @@ This app exposes a remote MCP server at `https://your-domain.com/api/mcp`. It us
 | `trash_note` | `notes:write` | Moves a note to trash (reversible) |
 | `restore_note` | `notes:write` | Restores a note from trash |
 
-Permanent deletion is not exposed. The authorization screen lets the user grant only the requested read and/or write scopes. Each connected client can be revoked under **Admin → Settings → MCP Connections**; revoking it removes its tokens immediately.
+Permanent deletion is not exposed. The authorization screen lets the user grant only the requested read and/or write scopes and choose a grant duration: 1 hour, 1 day, 7 days, 30 days (default), or no expiry. Access tokens still expire hourly; the duration controls refresh access. The duration can be changed later under **Admin → Settings → MCP Connections**. No expiry remains active until manually revoked. The settings page distinguishes registered clients awaiting authorization from connected and expired clients; successful OAuth token issuance is recorded so expired connections remain visible after token cleanup. Revoking a client removes its tokens immediately.
 
 ## Connect clients
 
@@ -47,7 +47,8 @@ That token grants both read and write access to the Notes API. Treat it as a pas
 
 ## Security behavior
 
-- OAuth uses exact registered redirect-URI matching, short-lived single-use authorization codes, PKCE `S256`, resource-bound tokens, one-hour access tokens, and rotating 30-day refresh tokens.
+- OAuth uses exact registered redirect-URI matching, short-lived single-use authorization codes, PKCE `S256`, resource-bound tokens, one-hour access tokens, and rotating refresh tokens whose lifetime is chosen during consent (30 days by default).
+- Refresh grants default to 30 days and support 1 hour, 1 day, 7 days, or no expiry. No-expiry grants remain revocable from Settings; access tokens still rotate hourly.
 - Access tokens, refresh tokens, authorization codes, and API tokens are stored as SHA-256 digests; raw OAuth credentials are never persisted.
 - Requests require HTTPS in production, a valid resource-bound bearer token, per-tool scope checks, an allowed Host/Origin, bounded request sizes, and database-backed rate limits. OAuth consent forms also carry a short-lived HMAC token bound to the exact authorization request and signed admin session, so embedded browser contexts can complete consent without trusting an arbitrary Origin.
 - Reads omit hidden and trashed notes. Search and list responses are bounded; full note reads are capped at 50,000 characters.

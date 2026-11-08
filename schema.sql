@@ -120,7 +120,8 @@ CREATE TABLE IF NOT EXISTS mcp_oauth_clients (
     client_name VARCHAR(100) NOT NULL,
     redirect_uris JSONB NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    last_used TIMESTAMPTZ
+    last_used TIMESTAMPTZ,
+    last_authorized_at TIMESTAMPTZ
 );
 
 CREATE TABLE IF NOT EXISTS mcp_oauth_codes (
@@ -130,6 +131,8 @@ CREATE TABLE IF NOT EXISTS mcp_oauth_codes (
     code_challenge VARCHAR(128) NOT NULL,
     scope TEXT NOT NULL,
     resource TEXT NOT NULL,
+    grant_duration VARCHAR(10) NOT NULL DEFAULT '30d',
+    grant_expires_at TIMESTAMPTZ,
     expires_at TIMESTAMPTZ NOT NULL,
     consumed_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -143,8 +146,9 @@ CREATE TABLE IF NOT EXISTS mcp_oauth_tokens (
     client_id VARCHAR(128) NOT NULL REFERENCES mcp_oauth_clients(client_id) ON DELETE CASCADE,
     scope TEXT NOT NULL,
     resource TEXT NOT NULL,
+    grant_duration VARCHAR(10) NOT NULL DEFAULT '30d',
     access_expires_at TIMESTAMPTZ NOT NULL,
-    refresh_expires_at TIMESTAMPTZ NOT NULL,
+    refresh_expires_at TIMESTAMPTZ,
     revoked_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

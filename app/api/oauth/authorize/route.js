@@ -4,7 +4,9 @@ import {
     getMcpOrigin,
     getMcpResource,
     getValidAdminSessionToken,
+    getMcpGrantExpiresAt,
     htmlEscape,
+    isMcpGrantDuration,
     MCP_SCOPES,
     createConsentToken,
     newSecret,
@@ -55,6 +57,18 @@ const authorizationStyles = `
     .permission-title{display:block;font-weight:650;font-size:13px}
     .permission-description{display:block;margin-top:3px;color:hsl(var(--muted-foreground));font-size:12px;line-height:1.45}
     .scope-tag{flex:none;margin-top:1px;padding:3px 7px;border:1px solid hsl(var(--border));border-radius:6px;color:hsl(var(--muted-foreground));font:10px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .duration-section{min-width:0;margin:21px 0 0;padding:0;border:0}
+    .duration-legend{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 11px;font-size:12px;font-weight:700;letter-spacing:.04em}
+    .duration-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .duration-option{display:flex;align-items:flex-start;gap:9px;min-width:0;padding:10px 11px;border:1px solid hsl(var(--border));border-radius:10px;background:hsl(var(--card));cursor:pointer;transition:border-color .15s,background-color .15s}
+    .duration-option:hover{border-color:hsl(var(--muted-foreground)/.55);background:hsl(var(--muted)/.48)}
+    .duration-option:focus-within{outline:2px solid hsl(var(--ring));outline-offset:2px}
+    .duration-option input{width:15px;height:15px;margin:2px 0 0;flex:none;accent-color:hsl(var(--primary));cursor:pointer}
+    .duration-copy{min-width:0;display:block}
+    .duration-name{display:block;font-size:12px;font-weight:650}
+    .duration-detail{display:block;margin-top:2px;color:hsl(var(--muted-foreground));font-size:10px;line-height:1.4}
+    .duration-recommended{margin-left:4px;color:hsl(var(--muted-foreground));font-size:9px;font-weight:600;letter-spacing:0}
+    .duration-note{margin:9px 0 0;color:hsl(var(--muted-foreground));font-size:11px;line-height:1.5}
     .redirect-box{display:flex;align-items:flex-start;gap:11px;margin-top:18px;padding:13px 14px;border-radius:11px;background:hsl(var(--muted)/.65)}
     .redirect-box svg{width:16px;height:16px;flex:none;margin-top:2px;color:hsl(var(--muted-foreground))}
     .redirect-title{margin:0;font-size:11px;font-weight:700}
@@ -73,7 +87,7 @@ const authorizationStyles = `
     .error-card{padding:34px}
     .error-mark{width:42px;height:42px;display:grid;place-items:center;margin-bottom:22px;border:1px solid hsl(var(--border));border-radius:13px;background:hsl(var(--muted));font-size:19px}
     .error-message{margin:17px 0 22px;padding:13px 15px;border:1px solid hsl(var(--border));border-radius:10px;background:hsl(var(--muted)/.65);color:hsl(var(--muted-foreground));font-size:13px}
-    @media(max-width:560px){.page{padding:0 16px}.topbar{height:66px}.secure-label{font-size:11px;padding:6px 9px}main{padding:26px 0 34px}.card{border-radius:16px}.card-head{padding:25px 22px 21px}.card-body{padding:21px 22px 24px}.scope-tag{display:none}.actions{flex-direction:column}.button{width:100%}.error-card{padding:26px 22px}}
+    @media(max-width:560px){.page{padding:0 16px}.topbar{height:66px}.secure-label{font-size:11px;padding:6px 9px}main{padding:26px 0 34px}.card{border-radius:16px}.card-head{padding:25px 22px 21px}.card-body{padding:21px 22px 24px}.scope-tag{display:none}.duration-grid{grid-template-columns:1fr}.duration-legend{align-items:flex-start;flex-direction:column;gap:3px}.actions{flex-direction:column}.button{width:100%}.error-card{padding:26px 22px}}
     @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important}}
 `;
 
@@ -157,8 +171,18 @@ export async function GET(request) {
             "notes:read": "Read your notes",
             "notes:write": "Make changes to your notes",
         };
+        const durationOptions = [
+            { value: "1h", title: "1 hour", detail: "A short connection" },
+            { value: "1d", title: "1 day", detail: "Access for one day" },
+            { value: "7d", title: "7 days", detail: "Access for one week" },
+            { value: "30d", title: "30 days", detail: "Recommended", recommended: true },
+            { value: "never", title: "No expiry", detail: "Until you disconnect it" },
+        ];
         const scopeOptions = authorization.requestedScopes
             .map((scope) => `<label class="permission"><input type="checkbox" name="approved_scope" value="${htmlEscape(scope)}" checked><span class="permission-copy"><span class="permission-title">${htmlEscape(scopeTitles[scope])}</span><span class="permission-description">${htmlEscape(scopeDescriptions[scope])}</span></span><span class="scope-tag">${htmlEscape(scope)}</span></label>`)
+            .join("");
+        const durationInputs = durationOptions
+            .map((option) => `<label class="duration-option"><input type="radio" name="grant_duration" value="${option.value}"${option.value === "30d" ? " checked" : ""}><span class="duration-copy"><span class="duration-name">${htmlEscape(option.title)}${option.recommended ? '<span class="duration-recommended">Recommended</span>' : ""}</span><span class="duration-detail">${htmlEscape(option.detail)}</span></span></label>`)
             .join("");
         const hidden = [
             ["client_id", authorization.clientId],
@@ -176,7 +200,7 @@ export async function GET(request) {
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta name="color-scheme" content="light dark"><title>Connect ${htmlEscape(authorization.clientName)} · Notes</title><style>${authorizationStyles}</style></head>
 <body><div class="page"><header class="topbar"><a class="brand" href="/"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M7 4.75h7l4 4v10.5H7a2 2 0 0 1-2-2v-10.5a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 5v4h4M8.5 13h7M8.5 16h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Notes</a><span class="secure-label"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 10V7a5 5 0 0 1 10 0v3m-11 0h12v10H6V10Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>Secure OAuth</span></header>
 <main><section class="card" aria-labelledby="consent-title"><div class="card-head"><div class="connection-mark" aria-hidden="true"><span class="app-mark">AI</span><span class="connector"></span><span class="notes-mark"><svg viewBox="0 0 24 24" fill="none"><path d="M7 4.75h7l4 4v10.5H7a2 2 0 0 1-2-2v-10.5a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 5v4h4M8.5 13h7M8.5 16h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div><p class="eyebrow">Permission review</p><h1 id="consent-title">Connect ${htmlEscape(authorization.clientName)} to Notes</h1><p class="intro"><span class="client-name">${htmlEscape(authorization.clientName)}</span> wants to connect to your notes. Choose the permissions you want to grant.</p></div>
-<div class="card-body"><p class="section-title">Access requested <span class="section-hint">You can change this selection</span></p><form method="post" action="${htmlEscape(`${getMcpOrigin()}/api/oauth/authorize`)}">${hidden}<div class="permissions" role="group" aria-label="Choose Notes permissions">${scopeOptions}</div><div class="redirect-box"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 10V7a5 5 0 0 1 10 0v3m-11 0h12v10H6V10Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><div><p class="redirect-title">Secure one-time redirect</p><code class="redirect-uri">${htmlEscape(authorization.redirectUri)}</code></div></div><div class="actions"><button class="button button-primary" type="submit" name="decision" value="approve">Allow selected access <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="button button-secondary" type="submit" name="decision" value="deny">Cancel</button></div></form><p class="footnote">Only the permissions selected above will be granted. You can revoke this connection later in Admin Settings.</p></div></section></main><footer class="footer">Notes · Your authorization can be revoked at any time.</footer></div></body></html>`;
+<div class="card-body"><p class="section-title">Access requested <span class="section-hint">You can change this selection</span></p><form method="post" action="${htmlEscape(`${getMcpOrigin()}/api/oauth/authorize`)}">${hidden}<div class="permissions" role="group" aria-label="Choose Notes permissions">${scopeOptions}</div><fieldset class="duration-section"><legend class="duration-legend">Connection duration <span class="section-hint">Access tokens rotate hourly</span></legend><div class="duration-grid">${durationInputs}</div><p class="duration-note">No expiry keeps this client authorized until you revoke it in Settings. You can change this duration later.</p></fieldset><div class="redirect-box"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 10V7a5 5 0 0 1 10 0v3m-11 0h12v10H6V10Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><div><p class="redirect-title">Secure one-time redirect</p><code class="redirect-uri">${htmlEscape(authorization.redirectUri)}</code></div></div><div class="actions"><button class="button button-primary" type="submit" name="decision" value="approve">Allow selected access <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="button button-secondary" type="submit" name="decision" value="deny">Cancel</button></div></form><p class="footnote">Only the permissions selected above will be granted. You can revoke this connection later in Admin Settings.</p></div></section></main><footer class="footer">Notes · Your authorization can be revoked at any time.</footer></div></body></html>`;
 
         return new NextResponse(html, {
             headers: secureHeaders({
@@ -236,6 +260,11 @@ export async function POST(request) {
         if (approvedScopes.some((scope) => !authorization.requestedScopes.includes(scope))) {
             return errorPage("The selected permissions are invalid.");
         }
+        const grantDurations = form.getAll("grant_duration");
+        if (grantDurations.length !== 1 || !isMcpGrantDuration(grantDurations[0])) {
+            return errorPage("Choose one valid connection duration.");
+        }
+        const grantExpiresAt = getMcpGrantExpiresAt(grantDurations[0]);
 
         if (!approvedScopes.length) {
             callback.searchParams.set("error", "access_denied");
@@ -247,11 +276,12 @@ export async function POST(request) {
         const code = newSecret("mcp_code_");
         await sql`
             INSERT INTO mcp_oauth_codes
-                (code_hash, client_id, redirect_uri, code_challenge, scope, resource, expires_at)
+                (code_hash, client_id, redirect_uri, code_challenge, scope, resource,
+                 grant_duration, grant_expires_at, expires_at)
             VALUES
                 (${digest(code)}, ${authorization.clientId}, ${authorization.redirectUri},
                  ${authorization.challenge}, ${approvedScopes.join(" ")}, ${authorization.resource},
-                 ${new Date(Date.now() + 120_000)})
+                 ${grantDurations[0]}, ${grantExpiresAt}, ${new Date(Date.now() + 120_000)})
         `;
 
         callback.searchParams.set("code", code);

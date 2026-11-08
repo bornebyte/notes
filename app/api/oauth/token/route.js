@@ -4,6 +4,7 @@ import { sql } from "@/lib/db";
 import {
     digest,
     getMcpResource,
+    isMcpGrantDuration,
     newSecret,
     rateLimit,
     readLimitedText,
@@ -13,8 +14,6 @@ import {
 export const runtime = "nodejs";
 
 const ACCESS_TTL_SECONDS = 60 * 60;
-const REFRESH_TTL_SECONDS = 60 * 60 * 24 * 30;
-
 function tokenError(error, status = 400) {
     return NextResponse.json({ error }, { status, headers: secureHeaders() });
 }
@@ -25,27 +24,46 @@ function sameValue(left, right) {
     return a.length === b.length && timingSafeEqual(a, b);
 }
 
-async function issueTokens(clientId, scope, resource) {
+async function issueTokens(clientId, scope, resource, grantDuration, grantExpiresAt) {
+    if (!isMcpGrantDuration(grantDuration)) throw new Error("Invalid OAuth grant duration.");
     const accessToken = newSecret("mcp_at_");
     const refreshToken = newSecret("mcp_rt_");
-    const accessExpiresAt = new Date(Date.now() + ACCESS_TTL_SECONDS * 1000);
-    const refreshExpiresAt = new Date(Date.now() + REFRESH_TTL_SECONDS * 1000);
+    const now = Date.now();
+    const refreshExpiresAtMs = grantExpiresAt ? new Date(grantExpiresAt).getTime() : null;
+    if (refreshExpiresAtMs !== null && refreshExpiresAtMs <= now) throw new Error("OAuth grant has expired.");
+    const accessExpiresAtMs = Math.min(
+        now + ACCESS_TTL_SECONDS * 1000,
+        refreshExpiresAtMs ?? Number.POSITIVE_INFINITY,
+    );
+    const accessExpiresAt = new Date(accessExpiresAtMs);
+    const refreshExpiresAt = refreshExpiresAtMs === null ? null : new Date(refreshExpiresAtMs);
+    const accessTtlSeconds = Math.max(1, Math.floor((accessExpiresAtMs - now) / 1000));
 
     await sql`
         INSERT INTO mcp_oauth_tokens
-            (access_token_hash, refresh_token_hash, client_id, scope, resource, access_expires_at, refresh_expires_at)
+            (access_token_hash, refresh_token_hash, client_id, scope, resource,
+             grant_duration, access_expires_at, refresh_expires_at)
         VALUES
-            (${digest(accessToken)}, ${digest(refreshToken)}, ${clientId}, ${scope}, ${resource}, ${accessExpiresAt}, ${refreshExpiresAt})
+            (${digest(accessToken)}, ${digest(refreshToken)}, ${clientId}, ${scope}, ${resource},
+             ${grantDuration}, ${accessExpiresAt}, ${refreshExpiresAt})
+    `;
+    await sql`
+        UPDATE mcp_oauth_clients
+        SET last_authorized_at = NOW()
+        WHERE client_id = ${clientId}
     `;
 
-    return NextResponse.json({
+    const tokenResponse = {
         access_token: accessToken,
         token_type: "Bearer",
-        expires_in: ACCESS_TTL_SECONDS,
+        expires_in: accessTtlSeconds,
         refresh_token: refreshToken,
-        refresh_token_expires_in: REFRESH_TTL_SECONDS,
         scope,
-    }, { headers: secureHeaders() });
+    };
+    if (refreshExpiresAtMs !== null) {
+        tokenResponse.refresh_token_expires_in = Math.max(1, Math.floor((refreshExpiresAtMs - now) / 1000));
+    }
+    return NextResponse.json(tokenResponse, { headers: secureHeaders() });
 }
 
 export async function POST(request) {
@@ -87,13 +105,14 @@ export async function POST(request) {
             if (!/^[A-Za-z0-9._~-]{43,128}$/.test(verifier)) return tokenError("invalid_grant");
 
             const codes = await sql`
-                SELECT code_challenge, scope, resource
+                SELECT code_challenge, scope, resource, grant_duration, grant_expires_at
                 FROM mcp_oauth_codes
                 WHERE code_hash = ${digest(code)}
                   AND client_id = ${clientId}
                   AND redirect_uri = ${redirectUri}
                   AND consumed_at IS NULL
                   AND expires_at > NOW()
+                  AND (grant_expires_at IS NULL OR grant_expires_at > NOW())
                 LIMIT 1
             `;
             if (!codes.length || codes[0].resource !== resource) return tokenError("invalid_grant");
@@ -108,11 +127,18 @@ export async function POST(request) {
                   AND client_id = ${clientId}
                   AND consumed_at IS NULL
                   AND expires_at > NOW()
-                RETURNING client_id, scope, resource
+                  AND (grant_expires_at IS NULL OR grant_expires_at > NOW())
+                RETURNING client_id, scope, resource, grant_duration, grant_expires_at
             `;
             if (!consumed.length) return tokenError("invalid_grant");
 
-            return await issueTokens(clientId, consumed[0].scope, consumed[0].resource);
+            return await issueTokens(
+                clientId,
+                consumed[0].scope,
+                consumed[0].resource,
+                consumed[0].grant_duration,
+                consumed[0].grant_expires_at,
+            );
         }
 
         if (form.get("grant_type") === "refresh_token") {
@@ -120,12 +146,12 @@ export async function POST(request) {
             const refreshToken = form.get("refresh_token");
             const resource = form.get("resource");
             const tokens = await sql`
-                SELECT scope, resource
+                SELECT scope, resource, grant_duration, refresh_expires_at
                 FROM mcp_oauth_tokens
                 WHERE refresh_token_hash = ${digest(refreshToken)}
                   AND client_id = ${clientId}
                   AND revoked_at IS NULL
-                  AND refresh_expires_at > NOW()
+                  AND (refresh_expires_at IS NULL OR refresh_expires_at > NOW())
                 LIMIT 1
             `;
             if (!tokens.length || (resource && resource !== tokens[0].resource)) return tokenError("invalid_grant");
@@ -136,12 +162,18 @@ export async function POST(request) {
                 WHERE refresh_token_hash = ${digest(refreshToken)}
                   AND client_id = ${clientId}
                   AND revoked_at IS NULL
-                  AND refresh_expires_at > NOW()
-                RETURNING scope, resource
+                  AND (refresh_expires_at IS NULL OR refresh_expires_at > NOW())
+                RETURNING scope, resource, grant_duration, refresh_expires_at
             `;
             if (!rotated.length) return tokenError("invalid_grant");
 
-            return await issueTokens(clientId, rotated[0].scope, rotated[0].resource);
+            return await issueTokens(
+                clientId,
+                rotated[0].scope,
+                rotated[0].resource,
+                rotated[0].grant_duration,
+                rotated[0].refresh_expires_at,
+            );
         }
 
         return tokenError("unsupported_grant_type");
