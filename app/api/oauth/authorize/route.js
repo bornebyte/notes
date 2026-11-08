@@ -104,7 +104,14 @@ function errorPage(message, status = 400) {
 function redirectNoStore(url, status) {
     return new NextResponse(null, { status, headers: secureHeaders({ Location: url.toString() }) });
 }
-
+function redirectWithFallback(url) {
+    const target = url.toString();
+    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Redirecting to ChatGPT</title><meta http-equiv="refresh" content="0;url=${htmlEscape(target)}"></head><body><p>You are being redirected to ChatGPT. If nothing happens, <a href="${htmlEscape(target)}">continue manually</a>.</p></body></html>`;
+    return new NextResponse(html, {
+        status: 200,
+        headers: secureHeaders({ "Content-Type": "text/html; charset=utf-8", "Location": target }),
+    });
+}
 async function getAuthorizationRequest(params) {
     for (const field of ["client_id", "redirect_uri", "response_type", "code_challenge", "code_challenge_method", "resource", "scope", "state"]) {
         if (params.getAll(field).length > 1) throw new Error("Duplicate authorization parameter.");
@@ -256,7 +263,7 @@ export async function POST(request) {
             callback.searchParams.set("error", "access_denied");
             callback.searchParams.set("iss", issuer);
             if (state) callback.searchParams.set("state", state);
-            return redirectNoStore(callback, 303);
+            return redirectWithFallback(callback);
         }
 
         const approvedScopes = [...new Set(form.getAll("approved_scope"))];
@@ -273,7 +280,7 @@ export async function POST(request) {
             callback.searchParams.set("error", "access_denied");
             callback.searchParams.set("iss", issuer);
             if (state) callback.searchParams.set("state", state);
-            return redirectNoStore(callback, 303);
+            return redirectWithFallback(callback);
         }
 
         const code = newSecret("mcp_code_");
@@ -290,7 +297,7 @@ export async function POST(request) {
         callback.searchParams.set("code", code);
         callback.searchParams.set("iss", issuer);
         if (state) callback.searchParams.set("state", state);
-        return redirectNoStore(callback, 303);
+        return redirectWithFallback(callback);
     } catch (error) {
         if (error?.message !== "request_too_large") console.error("MCP OAuth authorization failed.");
         return errorPage(
