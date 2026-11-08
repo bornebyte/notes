@@ -52,6 +52,7 @@ This project leverages a modern, full-stack JavaScript ecosystem.
 - **[API Reference](API_REFERENCE.md)** - Full API documentation
 - **[API Overview](API_OVERVIEW.md)** - Quick API overview
 - **[Security](SECURITY.md)** - Security policies and guidelines
+- **[MCP Server](MCP.md)** - Connect ChatGPT, Claude, and other MCP clients to Notes
 - **[Changelog](CHANGES.md)** - Version history and updates
 
 ## Getting Started

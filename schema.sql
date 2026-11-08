@@ -113,6 +113,52 @@ CREATE INDEX IF NOT EXISTS idx_api_tokens_revoked ON api_tokens(revoked);
 CREATE INDEX IF NOT EXISTS idx_api_tokens_created_at ON api_tokens(created_at DESC);
 
 -- =============================================================================
+-- TABLES: MCP OAuth clients, one-time authorization codes, and short-lived tokens
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS mcp_oauth_clients (
+    client_id VARCHAR(128) PRIMARY KEY,
+    client_name VARCHAR(100) NOT NULL,
+    redirect_uris JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_used TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS mcp_oauth_codes (
+    code_hash VARCHAR(64) PRIMARY KEY,
+    client_id VARCHAR(128) NOT NULL REFERENCES mcp_oauth_clients(client_id) ON DELETE CASCADE,
+    redirect_uri TEXT NOT NULL,
+    code_challenge VARCHAR(128) NOT NULL,
+    scope TEXT NOT NULL,
+    resource TEXT NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    consumed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_mcp_oauth_codes_expiry ON mcp_oauth_codes(expires_at);
+
+CREATE TABLE IF NOT EXISTS mcp_oauth_tokens (
+    access_token_hash VARCHAR(64) PRIMARY KEY,
+    refresh_token_hash VARCHAR(64) UNIQUE,
+    client_id VARCHAR(128) NOT NULL REFERENCES mcp_oauth_clients(client_id) ON DELETE CASCADE,
+    scope TEXT NOT NULL,
+    resource TEXT NOT NULL,
+    access_expires_at TIMESTAMPTZ NOT NULL,
+    refresh_expires_at TIMESTAMPTZ NOT NULL,
+    revoked_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_mcp_oauth_tokens_expiry ON mcp_oauth_tokens(access_expires_at);
+
+CREATE TABLE IF NOT EXISTS mcp_rate_limits (
+    key_hash VARCHAR(64) NOT NULL,
+    window_start TIMESTAMPTZ NOT NULL,
+    request_count INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (key_hash, window_start)
+);
+
+-- =============================================================================
 -- TABLE: push_subscriptions
 -- Stores Web Push subscription endpoints for admin devices
 -- =============================================================================
@@ -132,13 +178,18 @@ CREATE INDEX IF NOT EXISTS idx_push_subscriptions_created_at ON push_subscriptio
 -- =============================================================================
 -- SUMMARY
 -- =============================================================================
--- Total Tables: 6
+-- Total Tables: 11
 -- 1. notes          - Main notes storage with favorites, trash, and sharing
 -- 2. notifications  - System activity and event logs
 -- 3. targetdate     - Target dates and deadlines
 -- 4. messages       - Contact form / inbox messages
 -- 5. password       - Admin authentication (single row)
 -- 6. api_tokens     - API authentication tokens
+-- 7. push_subscriptions - Web Push subscriptions
+-- 8. mcp_oauth_clients  - Registered public MCP clients
+-- 9. mcp_oauth_codes    - Single-use, PKCE-bound OAuth authorization codes
+-- 10. mcp_oauth_tokens   - Hashed OAuth access/refresh tokens
+-- 11. mcp_rate_limits    - Shared request limits for protected endpoints
 --
 -- IMPORTANT NOTES:
 -- - The default admin password is 'admin' - CHANGE IT IMMEDIATELY after deployment

@@ -31,7 +31,24 @@ export function LoginForm() {
             const data = await response.json();
 
             if (data.success) {
-                router.push("/admin");
+                let safeTarget = "/admin";
+                const returnTo = new URLSearchParams(window.location.search).get("returnTo");
+                if (returnTo) {
+                    try {
+                        const target = new URL(returnTo, window.location.origin);
+                        if (target.origin === window.location.origin && target.pathname === "/api/oauth/authorize") {
+                            safeTarget = `${target.pathname}${target.search}`;
+                        }
+                    } catch {
+                        // Invalid return targets fall back to the admin page.
+                    }
+                }
+
+                if (safeTarget.startsWith("/api/oauth/authorize")) {
+                    window.location.assign(safeTarget);
+                    return;
+                }
+                router.push(safeTarget);
                 router.refresh();
             } else {
                 setError(data.message);

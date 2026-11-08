@@ -6,7 +6,9 @@
 - **Dual Authentication**: Supports both cookie-based (web) and API token authentication
 - **Secure Sessions**: HTTP-only cookies with JWT encryption
 - **Token Management**: 64-character cryptographically secure API tokens
+- **Hashed Tokens**: API token values are stored as SHA-256 digests and shown only once
 - **Token Revocation**: Ability to revoke tokens instantly
+- **MCP OAuth**: Authorization code + PKCE, scoped note access, expiring tokens, and client revocation
 
 ### SQL Injection Prevention
 - ✅ All database queries use parameterized queries via template literals
@@ -158,7 +160,7 @@ Referrer-Policy: strict-origin-when-cross-origin
 3. **Verify Tables**
    ```sql
    \dt -- List all tables
-   SELECT * FROM api_tokens;
+   SELECT id, name, created_at, last_used, revoked FROM api_tokens;
    SELECT * FROM notes LIMIT 5;
    ```
 

@@ -5,6 +5,7 @@ import { useRef } from "react";
 import { toast } from "@/hooks/use-toast";
 import { KeyRound } from "lucide-react";
 import ApiToken from "./ApiToken";
+import McpConnections from "./McpConnections";
 
 const SettingsComponent = () => {
   const newPassword = useRef('');
@@ -71,6 +72,7 @@ const SettingsComponent = () => {
         </div>
       </div>
       <ApiToken />
+      <McpConnections />
     </div>
   )
 }

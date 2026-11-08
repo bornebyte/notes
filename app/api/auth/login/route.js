@@ -3,10 +3,26 @@ import { createSession } from "@/lib/session";
 import { sendPushToAll } from "@/lib/push";
 import { AES, enc } from "crypto-js";
 import { NextResponse } from "next/server";
+import { rateLimit, readLimitedText, secureHeaders } from "@/lib/mcp/oauth";
 
 export async function POST(request) {
     try {
-        const { password } = await request.json();
+        const limit = await rateLimit("auth-login", 10, 900, request);
+        if (!limit.allowed) {
+            return NextResponse.json({
+                success: false,
+                message: "Too many login attempts. Try again later.",
+            }, { status: 429, headers: secureHeaders({ "Retry-After": String(limit.retryAfter) }) });
+        }
+
+        if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
+            return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 });
+        }
+        const body = JSON.parse(await readLimitedText(request, 4096));
+        const password = typeof body?.password === "string" ? body.password : "";
+        if (!password || password.length > 1024) {
+            return NextResponse.json({ success: false, message: "Invalid password." }, { status: 400 });
+        }
         let encryptedPassword = await sql.query("SELECT pass FROM password");
         const realPassword = AES.decrypt(encryptedPassword[0].pass, process.env.SESSION_SECRET).toString(enc.Utf8);
         const timestamp = new Date().toISOString();

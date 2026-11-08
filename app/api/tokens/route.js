@@ -1,7 +1,7 @@
 import { sql } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import crypto from "crypto";
+import { createApiToken, hashApiToken } from "@/lib/api-token";
 
 /**
  * GET /api/tokens
@@ -15,7 +15,7 @@ export async function GET(request) {
 
     try {
         const tokens = await sql`
-            SELECT id, token, name, created_at, last_used, revoked 
+            SELECT id, name, created_at, last_used, revoked
             FROM api_tokens 
             WHERE revoked = FALSE
             ORDER BY created_at DESC
@@ -24,7 +24,7 @@ export async function GET(request) {
         return NextResponse.json({
             success: true,
             tokens
-        });
+        }, { headers: { "Cache-Control": "no-store", "Pragma": "no-cache" } });
     } catch (error) {
         console.error("Error fetching tokens:", error);
         return NextResponse.json({
@@ -46,24 +46,26 @@ export async function POST(request) {
     }
 
     try {
-        const { name } = await request.json();
+        const body = await request.json();
+        const name = typeof body?.name === "string" ? body.name.trim() : "";
 
-        if (!name || name.trim().length < 3) {
+        if (name.length < 3 || name.length > 100) {
             return NextResponse.json({
                 success: false,
-                message: "Token name must be at least 3 characters"
+                message: "Token name must be between 3 and 100 characters"
             }, { status: 400 });
         }
 
         // Generate a secure random token
-        const token = crypto.randomBytes(32).toString('hex');
+        const token = createApiToken();
+        const tokenHash = hashApiToken(token);
         const now = new Date().toLocaleString("en-US", { timeZone: "Asia/Kathmandu" });
 
         // Store token in database
         const result = await sql`
             INSERT INTO api_tokens (token, name, created_at, last_used, revoked) 
-            VALUES (${token}, ${name}, ${now}, null, FALSE)
-            RETURNING id, token, name, created_at
+            VALUES (${tokenHash}, ${name}, ${now}, null, FALSE)
+            RETURNING id, name, created_at
         `;
 
         // Create notification
@@ -74,12 +76,12 @@ export async function POST(request) {
 
         return NextResponse.json({
             success: true,
-            token: result[0].token,
+            token,
             name: result[0].name,
             id: result[0].id,
             created_at: result[0].created_at,
             message: "Token created successfully. Use this token in the X-API-Token header. Store it securely - you won't be able to see it again!"
-        });
+        }, { headers: { "Cache-Control": "no-store", "Pragma": "no-cache" } });
     } catch (error) {
         console.error("Error generating token:", error);
         return NextResponse.json({

@@ -77,7 +77,7 @@
 ┌─────────────────────────────────────────────────────────────┐
 │ TOKEN API (Cookie Auth Required)                           │
 ├─────────────────────────────────────────────────────────────┤
-│ GET    /api/auth/token             → List all tokens        │
+│ GET    /api/auth/token             → List token metadata    │
 │ POST   /api/auth/token             → Generate new token     │
 │ DELETE /api/auth/token             → Revoke token           │
 └─────────────────────────────────────────────────────────────┘
@@ -100,6 +100,7 @@ Header: X-API-Token: your_64_character_token
 ✓ Tracks last usage
 ✓ Can be revoked anytime
 ✓ Multiple tokens supported
+✓ Token values are shown once and stored as hashes
 ```
 
 ## 🛡️ Security Features

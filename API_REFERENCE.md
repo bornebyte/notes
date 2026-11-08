@@ -40,7 +40,7 @@ Content-Type: application/json
 | `/api/messages` | POST | Create message | ✓ |
 | `/api/messages?id=X` | DELETE | Delete message | ✓ |
 | `/api/settings/password` | PUT | Change password | ✓ |
-| `/api/auth/token` | GET | List API tokens | ✓ (Cookie only) |
+| `/api/auth/token` | GET | List API token metadata (values hidden) | ✓ (Cookie only) |
 | `/api/auth/token` | POST | Generate token | ✓ (Cookie only) |
 | `/api/auth/token` | DELETE | Revoke token | ✓ (Cookie only) |
 
